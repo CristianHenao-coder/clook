@@ -104,6 +104,6 @@ app.use((req, res, next) => {
     }
 });
 
-app.listen(port, 'localhost', () => {
-    console.log(`Servidor corriendo en http://localhost:\${port}`);
+app.listen(port, '0.0.0.0', () => {
+    console.log(`Servidor corriendo en port ${port}`);
 });
