@@ -38,8 +38,8 @@ async function isBot(ip) {
     try {
         // Reemplaza estas URLs con las APIs de verificación de bots reales
         const responses = await Promise.all([
-            axios.get(`https://api.seon.io/check-bot?ip=\${ip}`),
-            axios.get(`https://api.imperva.com/check-bot?ip=\${ip}`)
+            axios.get(`https://api.seon.io/v1/check-bot?ip=\${ip}`),
+            // axios.get(`https://api.imperva.com/check-bot?ip=\${ip}`) // Descomenta si tienes una API de Imperva funcional
         ]);
         return responses.some(response => response.data.isBot);
     } catch (error) {
