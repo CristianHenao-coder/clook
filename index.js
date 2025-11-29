@@ -104,6 +104,22 @@ app.use((req, res, next) => {
     }
 });
 
+app.get('/redirect', (req, res) => {
+    const userAgent = req.headers['user-agent'];
+
+    function isMobileDevice() {
+        return /Mobi|Android/i.test(userAgent);
+    }
+
+    if (isMobileDevice()) {
+        // Redirigir a la página de instrucciones para dispositivos móviles
+        res.redirect('/instructions');
+    } else {
+        // Redirigir directamente al destino final para dispositivos de escritorio
+        res.redirect('https://onlyfans.com/perfil');
+    }
+});
+
 app.listen(port, '0.0.0.0', () => {
-    console.log(`Servidor corriendo en port ${port}`);
+    console.log(`Servidor corriendo en port \${port}`);
 });
