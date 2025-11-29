@@ -69,6 +69,14 @@ function rateLimiter(req, res, next) {
 
 app.use(rateLimiter);
 
+app.get('/', (req, res) => {
+    res.redirect('/instructions');
+});
+
+app.get('/instructions', (req, res) => {
+    res.render('instructions');
+});
+
 app.get('/instructions', (req, res) => {
     res.render('instructions');
 });
