@@ -3,29 +3,41 @@ const path = require('path');
 const dotenv = require('dotenv');
 const morgan = require('morgan');
 const fs = require('fs');
-const axios = require('axios');
+const cookieParser = require('cookie-parser');
 
 dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 3000;
-console.log(`Using port: ${port}`);
+console.log(`Using port: \${port}`);
 
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
 app.use(morgan('dev'));
 app.use(express.static('gif'));
+app.use(cookieParser());
 
-// ---------------------------
+// -------------------------------------------
+// Render / proxies → usar la IP real del cliente
+// -------------------------------------------
+app.set('trust proxy', true);
+
+function getRealIp(req) {
+    const fwd = req.headers['x-forwarded-for'];
+    if (fwd) return fwd.split(',')[0].trim();
+    return req.ip;
+}
+
+// -------------------------------------------
 // Rate Limiter
-// ---------------------------
+// -------------------------------------------
 const requestTimes = {};
 const MAX_REQUESTS = 10;
 const TIME_WINDOW = 60000;
 
 function rateLimiter(req, res, next) {
-    const ip = req.ip;
+    const ip = getRealIp(req);
     const now = Date.now();
 
     if (!requestTimes[ip]) {
@@ -41,11 +53,12 @@ function rateLimiter(req, res, next) {
     requestTimes[ip].push(now);
     next();
 }
+
 app.use(rateLimiter);
 
-// ---------------------------
+// -------------------------------------------
 // Bot + Search Engine Detection
-// ---------------------------
+// -------------------------------------------
 function isSearchEngine(userAgent) {
     const searchEngines = [
         'googlebot', 'bingbot', 'slurp', 'duckduckbot', 'baiduspider',
@@ -58,68 +71,163 @@ function isSearchEngine(userAgent) {
     return searchEngines.some(bot => ua.includes(bot));
 }
 
-async function isBot(ip) {
-    try {
-        const responses = await Promise.all([
-            axios.get(`https://api.seon.io/v1/check-bot?ip=${ip}`)
-        ]);
-        return responses.some(response => response.data.isBot);
-    } catch (error) {
-        console.error('Error checking bot:', error);
-        return false;
-    }
-}
-
-// ---------------------------
-// TikTok Browser Detection
-// ---------------------------
 function isTikTokInAppBrowser(userAgent) {
     const ua = userAgent?.toLowerCase() || '';
     return ua.includes('tiktok') || ua.includes('musically');
 }
 
-// ---------------------------
-// Routes
-// ---------------------------
+function isInstagramInAppBrowser(userAgent) {
+    const ua = userAgent?.toLowerCase() || '';
+    return (
+        ua.includes('instagram') ||
+        ua.includes('fban/instagram') ||
+        ua.includes('fb_iab') ||
+        ua.includes('fbav') // usado por IG y FB, pero en IG siempre aparece
+    );
+}
 
+function isJavaScriptEnabled(req) {
+    return req.headers['x-javascript-enabled'] === 'true';
+}
+
+function isCookiesEnabled(req) {
+    return req.cookies ? true : false;
+}
+
+// -------------------------------------------
+// Behavioral Analysis
+// -------------------------------------------
+const userActions = {};
+
+function trackUserAction(ip, action) {
+    if (!userActions[ip]) {
+        userActions[ip] = [];
+    }
+    userActions[ip].push({ action, timestamp: Date.now() });
+}
+
+function isSuspiciousBehavior(ip) {
+    if (!userActions[ip]) return false;
+    const actions = userActions[ip];
+    const now = Date.now();
+
+    // Ejemplo de comportamiento sospechoso: más de 5 acciones en 10 segundos
+    const recentActions = actions.filter(action => now - action.timestamp < 10000);
+    return recentActions.length > 5;
+}
+
+// -------------------------------------------
+// CAPTCHA Middleware
+// -------------------------------------------
+function captchaMiddleware(req, res, next) {
+    const ip = getRealIp(req);
+    if (isSuspiciousBehavior(ip)) {
+        return res.render('captcha');
+    }
+    next();
+}
+
+app.use(captchaMiddleware);
+
+function isMissingUserAgent(userAgent) {
+    return !userAgent || userAgent.trim() === '';
+}
+
+function isSuspiciousUserAgent(userAgent) {
+    if (!userAgent) return true;
+
+    const ua = userAgent.toLowerCase();
+
+    const suspiciousPatterns = [
+        'python-requests',
+        'axios/',
+        'curl/',
+        'wget',
+        'node-fetch',
+        'httpclient',
+        'java/',
+        'go-http',
+        'scrapy',
+        'spider',
+        'bot',
+        'crawler',
+        'libwww',
+        'unknown',
+        'apache-httpclient'
+    ];
+
+    return suspiciousPatterns.some(p => ua.includes(p));
+}
+
+
+function honeypotMiddleware(req, res, next) {
+    if (req.body && req.body.honeypot) {
+        console.log('Honeypot triggered → bot');
+        return res.render('searchEngine');
+    }
+    next();
+}
+
+
+app.use(express.urlencoded({ extended: true }));
+app.use(honeypotMiddleware);
+
+
+
+function isBot(req) {
+    const ua = req.headers['user-agent'];
+    const ip = getRealIp(req);
+
+    if (isMissingUserAgent(ua)) return true;
+    if (isSearchEngine(ua)) return true;
+    if (isSuspiciousUserAgent(ua)) return true;
+    if (isTikTokInAppBrowser(ua)) return true;
+    if (isInstagramInAppBrowser(ua)) return true;
+    if (isSuspiciousBehavior(ip)) return true;
+
+    return false;
+}
+
+
+// -------------------------------------------
+// Routes
+// -------------------------------------------
 app.get('/', (req, res) => {
     res.redirect('/instructions');
 });
 
 app.get('/instructions', (req, res) => {
-    const userAgent = req.headers['user-agent'] || '';
-
-    if (isTikTokInAppBrowser(userAgent)) {
-        console.log("User is inside TikTok's internal browser");
-        return res.render('instructions');
-    }
-
-    console.log("User opened link in a real browser → redirecting to /loading");
-    return res.redirect('/loading');
-});
-
-app.get('/loading', async (req, res) => {
+    const ip = getRealIp(req);
+    trackUserAction(ip, 'visit_instructions');
     const userAgent = req.headers['user-agent'];
-    const ip = req.ip;
 
     console.log('User-Agent:', userAgent);
-    console.log('IP:', ip);
-    console.log('Is search engine:', isSearchEngine(userAgent));
+    console.log('Real IP:', ip);
+    console.log('Bot detection:', isBot(req));
 
-    const isBotDetected = await isBot(ip);
-
-    if (isSearchEngine(userAgent) || isBotDetected) {
-        console.log('Detected search engine bot or bot IP');
-        res.render('searchEngine');
-    } else {
-        console.log('Detected regular user');
-        res.render('loading');
+    if (isBot(req)) {
+        return res.render('searchEngine');
     }
+
+    return res.render('instructions');
 });
 
-// ---------------------------
+
+
+app.get('/loading', (req, res) => {
+    const ip = getRealIp(req);
+    trackUserAction(ip, 'visit_loading');
+    if (isBot(req)) {
+        return res.render('searchEngine');
+        
+    }
+    return res.render('loading');
+});
+
+
+// -------------------------------------------
 // GIF Static File Handling
-// ---------------------------
+// -------------------------------------------
 app.use((req, res, next) => {
     if (req.method === 'GET' && req.url.startsWith('/gif/')) {
         const filePath = path.join(__dirname, 'gif', req.url.split('/').pop());
@@ -133,12 +241,11 @@ app.use((req, res, next) => {
     }
 });
 
-// ---------------------------
+// -------------------------------------------
 // /redirect (mobile logic)
-// ---------------------------
+// -------------------------------------------
 app.get('/redirect', (req, res) => {
     const userAgent = req.headers['user-agent'];
-
     const isMobile = /Mobi|Android/i.test(userAgent);
 
     if (isMobile) {
@@ -148,9 +255,9 @@ app.get('/redirect', (req, res) => {
     return res.redirect('https://onlyfans.com/perfil');
 });
 
-// ---------------------------
+// -------------------------------------------
 // Start server
-// ---------------------------
+// -------------------------------------------
 app.listen(port, '0.0.0.0', () => {
-    console.log(`Servidor corriendo en port ${port}`);
+    console.log(`Servidor corriendo en port \${port}`);
 });
