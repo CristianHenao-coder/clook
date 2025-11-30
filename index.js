@@ -78,12 +78,18 @@ function isTikTokInAppBrowser(userAgent) {
 
 function isInstagramInAppBrowser(userAgent) {
     const ua = userAgent?.toLowerCase() || '';
-    return (
-        ua.includes('instagram') ||
-        ua.includes('fban/instagram') ||
-        ua.includes('fb_iab') ||
-        ua.includes('fbav') // usado por IG y FB, pero en IG siempre aparece
-    );
+
+    const patterns = [
+        'instagram',
+        'fban/instagram',
+        'fb_iab',
+        'fbav',
+        'instagramapp',
+        'instagram 3',        // v300+, v400+, etc.
+        'version/0'           // usado por IG WebView en iOS
+    ];
+
+    return patterns.some(p => ua.includes(p));
 }
 
 function isJavaScriptEnabled(req) {
