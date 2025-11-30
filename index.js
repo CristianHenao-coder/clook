@@ -18,7 +18,7 @@ app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
 app.use(morgan('dev'));
-app.use(express.static('gif'));
+app.use('/clook/gif', express.static(path.join(__dirname, 'clook/gif')));
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 
