@@ -181,8 +181,6 @@ function isBot(req) {
     if (isMissingUserAgent(ua)) return true;
     if (isSearchEngine(ua)) return true;
     if (isSuspiciousUserAgent(ua)) return true;
-    if (isTikTokInAppBrowser(ua)) return true;
-    if (isInstagramInAppBrowser(ua)) return true;
     if (isSuspiciousBehavior(ip)) return true;
 
     return false;
@@ -192,25 +190,40 @@ function isBot(req) {
 // -------------------------------------------
 // Routes
 // -------------------------------------------
+
 app.get('/', (req, res) => {
-    res.redirect('/instructions');
+    return res.redirect('/instructions');
 });
 
 app.get('/instructions', (req, res) => {
     const ip = getRealIp(req);
     trackUserAction(ip, 'visit_instructions');
-    const userAgent = req.headers['user-agent'];
 
-    console.log('User-Agent:', userAgent);
+    const ua = req.headers['user-agent'] || '';
+
+    console.log('User-Agent:', ua);
     console.log('Real IP:', ip);
-    console.log('Bot detection:', isBot(req));
 
+    // 1. Bot check
     if (isBot(req)) {
-        return res.render('searchEngine');
+        console.log('[INSTRUCTIONS] Detected bot -> render searchEngine');
+        return res.render('searchEngine'); // asegúrate de tener views/searchEngine.ejs
     }
 
-    return res.render('instructions');
+    // 2. Mobile vs Desktop
+    const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(ua);
+
+    if (isMobile) {
+        console.log('[INSTRUCTIONS] Mobile -> render instructions');
+        return res.render('instructions'); // asegúrate de tener views/instructions.ejs
+    } else {
+        console.log('[INSTRUCTIONS] Desktop -> redirect to OnlyFans');
+        return res.redirect('https://onlyfans.com/perfil');
+    }
 });
+
+
+
 
 
 
@@ -241,23 +254,6 @@ app.use((req, res, next) => {
     }
 });
 
-// -------------------------------------------
-// /redirect (mobile logic)
-// -------------------------------------------
-app.get('/redirect', (req, res) => {
-    const userAgent = req.headers['user-agent'];
-    const isMobile = /Mobi|Android/i.test(userAgent);
-
-    if (isMobile) {
-        return res.redirect('/instructions');
-    }
-
-    return res.redirect('https://onlyfans.com/perfil');
-});
-
-// -------------------------------------------
-// Start server
-// -------------------------------------------
-app.listen(port, '0.0.0.0', () => {
-    console.log(`Servidor corriendo en port \${port}`);
+app.listen(port, () => {
+    console.log(`Server running on port ${port}`);
 });
