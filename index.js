@@ -200,27 +200,28 @@ app.get('/instructions', (req, res) => {
     trackUserAction(ip, 'visit_instructions');
 
     const ua = req.headers['user-agent'] || '';
-
-    console.log('User-Agent:', ua);
-    console.log('Real IP:', ip);
+    const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(ua);
 
     // 1. Bot check
     if (isBot(req)) {
-        console.log('[INSTRUCTIONS] Detected bot -> render searchEngine');
-        return res.render('searchEngine'); // asegúrate de tener views/searchEngine.ejs
+        return res.render('searchEngine');
     }
 
-    // 2. Mobile vs Desktop
-    const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(ua);
+    // *** ESTE ES EL PUNTO QUE TE FALTA ***
+    // Si SIGUE siendo TikTok → mostrar instrucciones
+    if (isTikTokInAppBrowser(ua)) {
+        return res.render('instructions');
+    }
 
+    // Si YA NO es TikTok → pasa a loading
     if (isMobile) {
-        console.log('[INSTRUCTIONS] Mobile -> render instructions');
-        return res.render('instructions'); // asegúrate de tener views/instructions.ejs
-    } else {
-        console.log('[INSTRUCTIONS] Desktop -> redirect to OnlyFans');
-        return res.redirect('https://onlyfans.com/perfil');
+        return res.redirect('/loading');
     }
+
+    // Desktop → OnlyFans
+    return res.redirect('https://onlyfans.com/perfil');
 });
+
 
 
 
