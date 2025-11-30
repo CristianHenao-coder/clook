@@ -33,7 +33,7 @@ function getRealIp(req) {
 // Rate Limiter
 // -------------------------------------------
 const requestTimes = {};
-const MAX_REQUESTS = 10;
+const MAX_REQUESTS = 50;
 const TIME_WINDOW = 60000;
 
 function rateLimiter(req, res, next) {
@@ -55,6 +55,7 @@ function rateLimiter(req, res, next) {
 }
 
 app.use(rateLimiter);
+
 
 // -------------------------------------------
 // Bot + Search Engine Detection
@@ -229,11 +230,6 @@ app.get('/instructions', (req, res) => {
 
 
 
-
-
-
-
-
 app.get('/loading', (req, res) => {
     const ip = getRealIp(req);
     trackUserAction(ip, 'visit_loading');
@@ -244,22 +240,6 @@ app.get('/loading', (req, res) => {
     return res.render('loading');
 });
 
-
-// -------------------------------------------
-// GIF Static File Handling
-// -------------------------------------------
-app.use((req, res, next) => {
-    if (req.method === 'GET' && req.url.startsWith('/gif/')) {
-        const filePath = path.join(__dirname, 'gif', req.url.split('/').pop());
-        if (fs.existsSync(filePath)) {
-            res.sendFile(filePath);
-        } else {
-            res.status(404).send('File not found');
-        }
-    } else {
-        next();
-    }
-});
 
 app.listen(port, () => {
     console.log(`Server running on port ${port}`);
