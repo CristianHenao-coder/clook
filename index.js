@@ -213,20 +213,20 @@ app.get('/instructions', (req, res) => {
         return res.render('searchEngine');
     }
 
-    // *** ESTE ES EL PUNTO QUE TE FALTA ***
-    // Si SIGUE siendo TikTok → mostrar instrucciones
-    if (isTikTokInAppBrowser(ua)) {
+    // 2. TikTok **o Instagram** → instrucciones
+    if (isTikTokInAppBrowser(ua) || isInstagramInAppBrowser(ua)) {
         return res.render('instructions');
     }
 
-    // Si YA NO es TikTok → pasa a loading
+    // 3. Mobile real (no in-app) → loading
     if (isMobile) {
         return res.redirect('/loading');
     }
 
-    // Desktop → OnlyFans
+    // 4. Desktop
     return res.redirect('https://onlyfans.com/perfil');
 });
+
 
 
 
