@@ -1,15 +1,18 @@
+
+
 const express = require('express');
 const path = require('path');
 const dotenv = require('dotenv');
 const morgan = require('morgan');
 const fs = require('fs');
 const cookieParser = require('cookie-parser');
+const crypto = require('crypto'); // <- para generar sessionId
 
 dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 3000;
-console.log(`Using port: \${port}`);
+console.log(`Using port: ${port}`);
 
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
@@ -17,6 +20,7 @@ app.set('views', path.join(__dirname, 'views'));
 app.use(morgan('dev'));
 app.use(express.static('gif'));
 app.use(cookieParser());
+app.use(express.urlencoded({ extended: true }));
 
 // -------------------------------------------
 // Render / proxies → usar la IP real del cliente
@@ -30,7 +34,21 @@ function getRealIp(req) {
 }
 
 // -------------------------------------------
-// Rate Limiter
+// Session ID Middleware
+// -------------------------------------------
+app.use((req, res, next) => {
+    if (!req.cookies.sessionId) {
+        const sessionId = crypto.randomBytes(16).toString('hex');
+        res.cookie('sessionId', sessionId, { httpOnly: true });
+        req.sessionId = sessionId;
+    } else {
+        req.sessionId = req.cookies.sessionId;
+    }
+    next();
+});
+
+// -------------------------------------------
+// Rate Limiter Inteligente (IP + session)
 // -------------------------------------------
 const requestTimes = {};
 const MAX_REQUESTS = 50;
@@ -38,24 +56,25 @@ const TIME_WINDOW = 60000;
 
 function rateLimiter(req, res, next) {
     const ip = getRealIp(req);
+    const sessionId = req.sessionId;
+    const key = `${ip}_${sessionId}`;
     const now = Date.now();
 
-    if (!requestTimes[ip]) {
-        requestTimes[ip] = [];
+    if (!requestTimes[key]) {
+        requestTimes[key] = [];
     }
 
-    requestTimes[ip] = requestTimes[ip].filter(time => now - time < TIME_WINDOW);
+    requestTimes[key] = requestTimes[key].filter(time => now - time < TIME_WINDOW);
 
-    if (requestTimes[ip].length >= MAX_REQUESTS) {
+    if (requestTimes[key].length >= MAX_REQUESTS) {
         return res.status(429).send('Too Many Requests');
     }
 
-    requestTimes[ip].push(now);
+    requestTimes[key].push(now);
     next();
 }
 
 app.use(rateLimiter);
-
 
 // -------------------------------------------
 // Bot + Search Engine Detection
@@ -86,8 +105,8 @@ function isInstagramInAppBrowser(userAgent) {
         'fb_iab',
         'fbav',
         'instagramapp',
-        'instagram 3',        // v300+, v400+, etc.
-        'version/0'           // usado por IG WebView en iOS
+        'instagram 3',
+        'version/0'
     ];
 
     return patterns.some(p => ua.includes(p));
@@ -117,8 +136,6 @@ function isSuspiciousBehavior(ip) {
     if (!userActions[ip]) return false;
     const actions = userActions[ip];
     const now = Date.now();
-
-    // Ejemplo de comportamiento sospechoso: más de 5 acciones en 10 segundos
     const recentActions = actions.filter(action => now - action.timestamp < 10000);
     return recentActions.length > 5;
 }
@@ -142,30 +159,14 @@ function isMissingUserAgent(userAgent) {
 
 function isSuspiciousUserAgent(userAgent) {
     if (!userAgent) return true;
-
     const ua = userAgent.toLowerCase();
-
     const suspiciousPatterns = [
-        'python-requests',
-        'axios/',
-        'curl/',
-        'wget',
-        'node-fetch',
-        'httpclient',
-        'java/',
-        'go-http',
-        'scrapy',
-        'spider',
-        'bot',
-        'crawler',
-        'libwww',
-        'unknown',
-        'apache-httpclient'
+        'python-requests', 'axios/', 'curl/', 'wget', 'node-fetch',
+        'httpclient', 'java/', 'go-http', 'scrapy', 'spider', 'bot',
+        'crawler', 'libwww', 'unknown', 'apache-httpclient'
     ];
-
     return suspiciousPatterns.some(p => ua.includes(p));
 }
-
 
 function honeypotMiddleware(req, res, next) {
     if (req.body && req.body.honeypot) {
@@ -175,29 +176,21 @@ function honeypotMiddleware(req, res, next) {
     next();
 }
 
-
-app.use(express.urlencoded({ extended: true }));
 app.use(honeypotMiddleware);
-
-
 
 function isBot(req) {
     const ua = req.headers['user-agent'];
     const ip = getRealIp(req);
-
     if (isMissingUserAgent(ua)) return true;
     if (isSearchEngine(ua)) return true;
     if (isSuspiciousUserAgent(ua)) return true;
     if (isSuspiciousBehavior(ip)) return true;
-
     return false;
 }
-
 
 // -------------------------------------------
 // Routes
 // -------------------------------------------
-
 app.get('/', (req, res) => {
     return res.redirect('/instructions');
 });
@@ -209,37 +202,19 @@ app.get('/instructions', (req, res) => {
     const ua = req.headers['user-agent'] || '';
     const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(ua);
 
-    // 1. Bot check
-    if (isBot(req)) {
-        return res.render('searchEngine');
-    }
+    if (isBot(req)) return res.render('searchEngine');
+    if (isTikTokInAppBrowser(ua) || isInstagramInAppBrowser(ua)) return res.render('instructions');
+    if (isMobile) return res.redirect('/loading');
 
-    // 2. TikTok **o Instagram** → instrucciones
-    if (isTikTokInAppBrowser(ua) || isInstagramInAppBrowser(ua)) {
-        return res.render('instructions');
-    }
-
-    // 3. Mobile real (no in-app) → loading
-    if (isMobile) {
-        return res.redirect('/loading');
-    }
-
-    // 4. Desktop
     return res.redirect('https://onlyfans.com/perfil');
 });
-
-
 
 app.get('/loading', (req, res) => {
     const ip = getRealIp(req);
     trackUserAction(ip, 'visit_loading');
-    if (isBot(req)) {
-        return res.render('searchEngine');
-        
-    }
+    if (isBot(req)) return res.render('searchEngine');
     return res.render('loading');
 });
-
 
 app.listen(port, () => {
     console.log(`Server running on port ${port}`);
