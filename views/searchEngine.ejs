@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Modelo - Perfil</title>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(145deg, #1a0012, #430027, #ff0077);
+      background-size: 200% 200%;
+      animation: ambient 12s ease infinite;
+      color: #fff;
+    }
+
+    @keyframes ambient {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    .page-bg {
+      width: 100%;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .profile-card {
+      background: rgba(255,255,255,0.07);
+      padding: 25px;
+      border-radius: 20px;
+      text-align: center;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 0 25px rgba(255,0,120,0.4);
+      width: 90%;
+      max-width: 420px;
+      animation: softFloat 4s ease-in-out infinite;
+    }
+
+    @keyframes softFloat {
+      0% { transform: translateY(0); }
+      50% { transform: translateY(-6px); }
+      100% { transform: translateY(0); }
+    }
+
+    .profile-image-wrapper {
+      margin-bottom: 20px;
+    }
+
+    .profile-image {
+      width: 100%;
+      border-radius: 18px;
+      box-shadow: 0 0 25px rgba(255,0,120,0.45);
+    }
+
+    .profile-name {
+      font-size: 2.2em;
+      font-weight: 700;
+      margin-bottom: 5px;
+      letter-spacing: 1px;
+    }
+
+    .profile-subtitle {
+      opacity: 0.8;
+      margin-bottom: 30px;
+      font-size: 1.1em;
+    }
+
+    .buttons-wrapper {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+
+    .service-btn {
+      background: linear-gradient(135deg, #ff007a, #c40054);
+      padding: 15px 20px;
+      border-radius: 15px;
+      color: #fff;
+      text-decoration: none;
+      font-weight: 600;
+      letter-spacing: 1px;
+      display: flex;
+      flex-direction: column;
+      transition: 0.2s ease;
+      box-shadow: 0 0 18px rgba(255,0,120,0.4);
+    }
+
+    .service-btn:hover {
+      transform: scale(1.04);
+      box-shadow: 0 0 28px rgba(255,0,120,0.7);
+    }
+
+    .service-title {
+      font-size: 1.4em;
+    }
+
+    .service-subtitle {
+      font-size: 1em;
+      opacity: 0.85;
+    }
+
+  </style>
+</head>
+
+<body>
+  <div class="page-bg">
+    <main class="profile-card">
+      <div class="profile-image-wrapper">
+        <img src="/clook/gif/model.png" alt="foto_modelo" class="profile-image" />
+      </div>
+
+      <section class="profile-info">
+        <h1 class="profile-name">SARA MAMALONA</h1>
+        <p class="profile-subtitle">Joven emprendedora apasionada… por las pasiones.</p>
+      </section>
+
+      <section class="buttons-wrapper">
+        <a href="https://www.tiktok.com/search?q=subir%20reaismo%20a%20imagenes&t=1762029936708" class="service-btn">
+          <span class="service-title">TIKTOK</span>
+          <span class="service-subtitle">🔥 Contenido reciente</span>
+        </a>
+
+        <a href="/secret" class="service-btn">
+          <span class="service-title">MY SECRET PAGE</span>
+          <span class="service-subtitle">Descúbreme… de verdad 🔥</span>
+        </a>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

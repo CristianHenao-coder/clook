@@ -1,5 +1,3 @@
-
-
 const express = require('express');
 const path = require('path');
 const dotenv = require('dotenv');
@@ -191,10 +189,17 @@ function isBot(req) {
 // -------------------------------------------
 // Routes
 // -------------------------------------------
+
+// Todos llegan a /instructions
 app.get('/', (req, res) => {
     return res.redirect('/instructions');
 });
 
+// -------------------------------------------
+// /instructions
+// -------------------------------------------
+// Aquí NO bloqueas bots. Todos pueden ver esta página.
+// Solo rediriges según móvil/PC, In-App browsers, etc.
 app.get('/instructions', (req, res) => {
     const ip = getRealIp(req);
     trackUserAction(ip, 'visit_instructions');
@@ -202,23 +207,79 @@ app.get('/instructions', (req, res) => {
     const ua = req.headers['user-agent'] || '';
     const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(ua);
 
-    if (isBot(req)) return res.render('searchEngine');
-    if (isTikTokInAppBrowser(ua) || isInstagramInAppBrowser(ua)) return res.render('instructions');
-    if (isMobile) return res.redirect('/loading');
+    const fromTikTok = isTikTokInAppBrowser(ua);
+    const fromInstagram = isInstagramInAppBrowser(ua);
 
-    return res.redirect('https://onlyfans.com/perfil');
+    // 1. TikTok / Instagram in-app browser EN MÓVIL → mostrar instructions
+    if ((fromTikTok || fromInstagram) && isMobile) {
+        return res.render('instructions');
+    }
+
+    // 2. TikTok / Instagram in-app pero EN PC → pasan directo
+    if ((fromTikTok || fromInstagram) && !isMobile) {
+        return res.redirect('/searchEngine');
+    }
+
+    // 3. Usuarios normales (móvil y PC) → searchEngine
+    return res.redirect('/searchEngine');
 });
 
+
+// -------------------------------------------
+// /searchEngine (landing con botones)
+// -------------------------------------------
+// A esta página llegan quienes siguieron las instrucciones
+// NO se bloquea nada aquí. Es pública.
+app.get('/searchEngine', (req, res) => {
+    const ip = getRealIp(req);
+    trackUserAction(ip, 'visit_searchEngine');
+
+    return res.render('searchEngine');
+});
+
+// -------------------------------------------
+// /loading (CLOAKING FINAL)
+// -------------------------------------------
+// Aquí SÍ se aplica detección completa.
+// Si es bot → redirigir a Instagram/TikTok
+// Si es humano → dejar pasar a /secret
+// -------------------------------------------
 app.get('/loading', (req, res) => {
     const ip = getRealIp(req);
+    const ua = req.headers['user-agent'] || '';
+
     trackUserAction(ip, 'visit_loading');
-    if (isBot(req)) return res.render('searchEngine');
+
+    // Bot detection REAL
+    if (isBot(req) || isTikTokInAppBrowser(ua) || isInstagramInAppBrowser(ua)) {
+        return res.redirect('https://instagram.com/tu_perfil');
+    }
+
+    // Si pasa todo → carga animación
     return res.render('loading');
 });
+
+// -------------------------------------------
+// Página secreta final
+// -------------------------------------------
+app.get('/secret', (req, res) => {
+    const ip = getRealIp(req);
+    trackUserAction(ip, 'visit_secret');
+
+    const ua = req.headers['user-agent'] || '';
+
+    // Segunda verificación máxima
+    if (isBot(req) || isTikTokInAppBrowser(ua) || isInstagramInAppBrowser(ua)) {
+        // Bot, crawler, o in-app browser → fuera
+        return res.redirect('https://instagram.com/tu_perfil');
+    }
+
+    // Humano real y navegador real → acceso al OnlyFans
+    return res.redirect('https://onlyfans.com/tu_link_secreto');
+});
+
+
 
 app.listen(port, () => {
     console.log(`Server running on port ${port}`);
 });
-
-
-// esto es una prueba

@@ -3,58 +3,72 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Instrucciones</title>
+    <title>Acceso Privado</title>
+
     <style>
         body {
-            font-family: 'Arial', sans-serif;
-            background: linear-gradient(135deg, #e41c80, #88145b);
+            margin: 0;
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #1a0014, #4d002f, #ff006e);
+            background-size: 180% 180%;
+            animation: glow 10s ease infinite;
             color: #fff;
             text-align: center;
-            padding: 50px;
-            margin: 0;
-            height: 100vh;
+            padding: 40px;
             display: flex;
             flex-direction: column;
             justify-content: center;
-            align-items: center;
-        }
-        h1 {
-            font-size: 2.5em;
-            margin-bottom: 20px;
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
-        }
-        img {
-            max-width: 100%;
-            height: auto;
-            border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
-            animation: blink 2s step-end infinite;
-        }
-        @keyframes blink {
-            90% {
-                opacity: 0;
-            }
-        }
-        p {
-            font-size: 1.2em;
-            margin: 10px 0;
-            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+            min-height: 100vh;
         }
 
+        @keyframes glow {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        h1 {
+            font-size: 3em;
+            margin-bottom: 5px;
+            letter-spacing: 2px;
+            font-weight: 700;
+        }
+
+        h2 {
+            font-size: 1.5em;
+            margin-bottom: 30px;
+            opacity: 0.9;
+        }
+
+        p {
+            font-size: 1.3em;
+            margin: 10px 0;
+            opacity: 0.95;
+        }
+
+        img {
+            max-width: 90%;
+            margin-top: 25px;
+            border-radius: 15px;
+            box-shadow: 0 0 20px rgba(255, 0, 112, 0.6);
+            animation: softPulse 3s infinite ease-in-out;
+        }
+
+        @keyframes softPulse {
+            0% { transform: scale(1); opacity: 0.95; }
+            50% { transform: scale(1.03); opacity: 1; }
+            100% { transform: scale(1); opacity: 0.95; }
+        }
     </style>
 </head>
+
 <body>
-    <h1>Mi página secreta</h1>
-    <h2>Sigue las instrucciones</h2>
+    <h1>ACCESO PRIVADO</h1>
+    <h2>Sigue estas instrucciones para entrar</h2>
 
     <p>1. Toca los tres puntos en la esquina superior derecha.</p>
-    <p>2. Toca "Abrir en navegador" desde el menú que se abre.</p>
-    <img src="/clook/gif/gitonly.png" alt="Instrucciones">
+    <p>2. Selecciona <b>"Abrir en navegador"</b>.</p>
 
-    <script>
-        function redirectToLoading() {
-            window.location.href = '/loading';
-        }
-    </script>
+    <img src="/clook/gif/gitonly.png" alt="Instrucciones">
 </body>
 </html>
