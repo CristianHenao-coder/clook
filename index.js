@@ -5,6 +5,8 @@ const morgan = require('morgan');
 const fs = require('fs');
 const cookieParser = require('cookie-parser');
 const crypto = require('crypto'); // <- para generar sessionId
+const links = require("./links.json");
+
 
 dotenv.config();
 
@@ -189,6 +191,17 @@ function isBot(req) {
 // -------------------------------------------
 // Routes
 // -------------------------------------------
+app.get("/c/:id", (req, res) => {
+    const id = req.params.id;
+
+    if (!links[id]) {
+        return res.status(404).send("Invalid link");
+    }
+
+    return res.redirect(`/instructions/${id}`);
+});
+
+
 
 // Todos llegan a /instructions
 app.get('/', (req, res) => {
@@ -200,7 +213,7 @@ app.get('/', (req, res) => {
 // -------------------------------------------
 // Aquí NO bloqueas bots. Todos pueden ver esta página.
 // Solo rediriges según móvil/PC, In-App browsers, etc.
-app.get('/instructions', (req, res) => {
+app.get('/instructions/:id', (req, res) => {
     const ip = getRealIp(req);
     trackUserAction(ip, 'visit_instructions');
 
@@ -230,7 +243,7 @@ app.get('/instructions', (req, res) => {
 // -------------------------------------------
 // A esta página llegan quienes siguieron las instrucciones
 // NO se bloquea nada aquí. Es pública.
-app.get('/searchEngine', (req, res) => {
+app.get('/searchEngine/:id', (req, res) => {
     const ip = getRealIp(req);
     trackUserAction(ip, 'visit_searchEngine');
 
@@ -244,7 +257,7 @@ app.get('/searchEngine', (req, res) => {
 // Si es bot → redirigir a Instagram/TikTok
 // Si es humano → dejar pasar a /secret
 // -------------------------------------------
-app.get('/loading', (req, res) => {
+app.get('/loading/:id', (req, res) => {
     const ip = getRealIp(req);
     const ua = req.headers['user-agent'] || '';
 
@@ -262,7 +275,7 @@ app.get('/loading', (req, res) => {
 // -------------------------------------------
 // Página secreta final
 // -------------------------------------------
-app.get('/secret', (req, res) => {
+app.get('/secret/:id', (req, res) => {
     const ip = getRealIp(req);
     trackUserAction(ip, 'visit_secret');
 
