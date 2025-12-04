@@ -4,9 +4,7 @@ const dotenv = require('dotenv');
 const morgan = require('morgan');
 const fs = require('fs');
 const cookieParser = require('cookie-parser');
-const crypto = require('crypto'); // <- para generar sessionId
-const links = require("./links.json");
-
+const crypto = require('crypto');
 
 dotenv.config();
 
@@ -23,7 +21,7 @@ app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 
 // -------------------------------------------
-// Render / proxies → usar la IP real del cliente
+// Utils
 // -------------------------------------------
 app.set('trust proxy', true);
 
@@ -31,6 +29,11 @@ function getRealIp(req) {
     const fwd = req.headers['x-forwarded-for'];
     if (fwd) return fwd.split(',')[0].trim();
     return req.ip;
+}
+
+function getLinks() {
+    const data = fs.readFileSync(path.join(__dirname, 'links.json'), 'utf-8');
+    return JSON.parse(data);
 }
 
 // -------------------------------------------
@@ -48,7 +51,7 @@ app.use((req, res, next) => {
 });
 
 // -------------------------------------------
-// Rate Limiter Inteligente (IP + session)
+// Rate Limiter (IP + Session)
 // -------------------------------------------
 const requestTimes = {};
 const MAX_REQUESTS = 50;
@@ -60,11 +63,8 @@ function rateLimiter(req, res, next) {
     const key = `${ip}_${sessionId}`;
     const now = Date.now();
 
-    if (!requestTimes[key]) {
-        requestTimes[key] = [];
-    }
-
-    requestTimes[key] = requestTimes[key].filter(time => now - time < TIME_WINDOW);
+    if (!requestTimes[key]) requestTimes[key] = [];
+    requestTimes[key] = requestTimes[key].filter(t => now - t < TIME_WINDOW);
 
     if (requestTimes[key].length >= MAX_REQUESTS) {
         return res.status(429).send('Too Many Requests');
@@ -73,11 +73,10 @@ function rateLimiter(req, res, next) {
     requestTimes[key].push(now);
     next();
 }
-
 app.use(rateLimiter);
 
 // -------------------------------------------
-// Bot + Search Engine Detection
+// Bot / UA Detection
 // -------------------------------------------
 function isSearchEngine(userAgent) {
     const searchEngines = [
@@ -87,28 +86,21 @@ function isSearchEngine(userAgent) {
         'quora link preview', 'showyoubot', 'outbrain', 'pinterest',
         'vkshare', 'w3c_validator'
     ];
-    const ua = userAgent.toLowerCase();
+    const ua = (userAgent || '').toLowerCase();
     return searchEngines.some(bot => ua.includes(bot));
 }
 
 function isTikTokInAppBrowser(userAgent) {
-    const ua = userAgent?.toLowerCase() || '';
+    const ua = (userAgent || '').toLowerCase();
     return ua.includes('tiktok') || ua.includes('musically');
 }
 
 function isInstagramInAppBrowser(userAgent) {
-    const ua = userAgent?.toLowerCase() || '';
-
+    const ua = (userAgent || '').toLowerCase();
     const patterns = [
-        'instagram',
-        'fban/instagram',
-        'fb_iab',
-        'fbav',
-        'instagramapp',
-        'instagram 3',
-        'version/0'
+        'instagram', 'fban/instagram', 'fb_iab', 'fbav',
+        'instagramapp', 'instagram 3', 'version/0'
     ];
-
     return patterns.some(p => ua.includes(p));
 }
 
@@ -119,39 +111,6 @@ function isJavaScriptEnabled(req) {
 function isCookiesEnabled(req) {
     return req.cookies ? true : false;
 }
-
-// -------------------------------------------
-// Behavioral Analysis
-// -------------------------------------------
-const userActions = {};
-
-function trackUserAction(ip, action) {
-    if (!userActions[ip]) {
-        userActions[ip] = [];
-    }
-    userActions[ip].push({ action, timestamp: Date.now() });
-}
-
-function isSuspiciousBehavior(ip) {
-    if (!userActions[ip]) return false;
-    const actions = userActions[ip];
-    const now = Date.now();
-    const recentActions = actions.filter(action => now - action.timestamp < 10000);
-    return recentActions.length > 5;
-}
-
-// -------------------------------------------
-// CAPTCHA Middleware
-// -------------------------------------------
-function captchaMiddleware(req, res, next) {
-    const ip = getRealIp(req);
-    if (isSuspiciousBehavior(ip)) {
-        return res.render('captcha');
-    }
-    next();
-}
-
-app.use(captchaMiddleware);
 
 function isMissingUserAgent(userAgent) {
     return !userAgent || userAgent.trim() === '';
@@ -168,52 +127,80 @@ function isSuspiciousUserAgent(userAgent) {
     return suspiciousPatterns.some(p => ua.includes(p));
 }
 
+// -------------------------------------------
+// Behavioral Analysis
+// -------------------------------------------
+const userActions = {};
+
+function trackUserAction(ip, action) {
+    if (!userActions[ip]) userActions[ip] = [];
+    userActions[ip].push({ action, timestamp: Date.now() });
+}
+
+function isSuspiciousBehavior(ip) {
+    if (!userActions[ip]) return false;
+    const actions = userActions[ip];
+    const recentActions = actions.filter(action => Date.now() - action.timestamp < 10000);
+    return recentActions.length > 5;
+}
+
+// -------------------------------------------
+// CAPTCHA Middleware
+// -------------------------------------------
+function captchaMiddleware(req, res, next) {
+    const ip = getRealIp(req);
+    if (isSuspiciousBehavior(ip)) return res.render('captcha');
+    next();
+}
+app.use(captchaMiddleware);
+
+// -------------------------------------------
+// Honeypot Middleware
+// -------------------------------------------
 function honeypotMiddleware(req, res, next) {
     if (req.body && req.body.honeypot) {
         console.log('Honeypot triggered → bot');
-        return res.render('searchEngine');
+        return res.render('searchEngine', { id: 'bot', model: {} });
     }
     next();
 }
-
 app.use(honeypotMiddleware);
 
+// -------------------------------------------
+// Bot Check
+// -------------------------------------------
 function isBot(req) {
     const ua = req.headers['user-agent'];
     const ip = getRealIp(req);
-    if (isMissingUserAgent(ua)) return true;
-    if (isSearchEngine(ua)) return true;
-    if (isSuspiciousUserAgent(ua)) return true;
-    if (isSuspiciousBehavior(ip)) return true;
-    return false;
+    return (
+        isMissingUserAgent(ua) ||
+        isSearchEngine(ua) ||
+        isSuspiciousUserAgent(ua) ||
+        isSuspiciousBehavior(ip)
+    );
 }
 
 // -------------------------------------------
 // Routes
 // -------------------------------------------
-
-// Ruta inicial /c/:id → redirige a instrucciones
-app.get("/c/:id", (req, res) => {
-    const id = req.params.id;
-
-    if (!links[id]) {
-        return res.status(404).send("Invalid link");
-    }
-
-    return res.redirect(`/instructions/${id}`);
-});
-
-// Raíz → redirige a un ID por defecto (evita 404)
-app.get('/', (req, res) => {
-    const defaultId = Object.keys(links)[0] || "defaultId";
+app.get("/", (req, res) => {
+    const links = getLinks();
+    const defaultId = Object.keys(links)[0] || "default";
     return res.redirect(`/instructions/${defaultId}`);
 });
 
-// /instructions/:id
-app.get('/instructions/:id', (req, res) => {
+app.get("/c/:id", (req, res) => {
+    const links = getLinks();
     const id = req.params.id;
-
     if (!links[id]) return res.status(404).send("Invalid link");
+    return res.redirect(`/instructions/${id}`);
+});
+
+app.get('/instructions/:id', (req, res) => {
+    const links = getLinks();
+    const id = req.params.id;
+    const model = links[id];
+    if (!model) return res.status(404).send("Invalid link");
 
     const ip = getRealIp(req);
     trackUserAction(ip, 'visit_instructions');
@@ -221,75 +208,58 @@ app.get('/instructions/:id', (req, res) => {
     const ua = req.headers['user-agent'] || '';
     const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(ua);
 
-    const fromTikTok = isTikTokInAppBrowser(ua);
-    const fromInstagram = isInstagramInAppBrowser(ua);
-
-    // 1. TikTok / Instagram in-app browser EN MÓVIL → mostrar instructions
-    if ((fromTikTok || fromInstagram) && isMobile) {
+    if ((isTikTokInAppBrowser(ua) || isInstagramInAppBrowser(ua)) && isMobile) {
         return res.render('instructions', { id });
     }
 
-    // 2. TikTok / Instagram in-app pero EN PC → pasan directo
-    if ((fromTikTok || fromInstagram) && !isMobile) {
-        return res.redirect(`/searchEngine/${id}`);
-    }
-
-    // 3. Usuarios normales (móvil y PC) → searchEngine
     return res.redirect(`/searchEngine/${id}`);
 });
 
-// /searchEngine/:id
 app.get('/searchEngine/:id', (req, res) => {
+    const links = getLinks();
     const id = req.params.id;
-
-    if (!links[id]) return res.status(404).send("Invalid link");
+    const model = links[id];
+    if (!model) return res.status(404).send("Invalid link");
 
     const ip = getRealIp(req);
     trackUserAction(ip, 'visit_searchEngine');
 
-    return res.render('searchEngine', { id });
+    return res.render('searchEngine', { id, model });
 });
 
 app.get('/loading/:id', (req, res) => {
+    const links = getLinks();
     const id = req.params.id;
-
-    if (!links[id]) return res.status(404).send("Invalid link");
+    const model = links[id];
+    if (!model) return res.status(404).send("Invalid link");
 
     const ip = getRealIp(req);
-    const ua = req.headers['user-agent'] || '';
-
     trackUserAction(ip, 'visit_loading');
 
-    // Bot detection
+    const ua = req.headers['user-agent'] || '';
     if (isBot(req) || isTikTokInAppBrowser(ua) || isInstagramInAppBrowser(ua)) {
         return res.redirect('https://instagram.com/tu_perfil');
     }
 
-    return res.render('loading', { id }); // <-- pasa el id
+    return res.render('loading', { id });
 });
 
-
-// /secret/:id
 app.get('/secret/:id', (req, res) => {
+    const links = getLinks();
     const id = req.params.id;
-
-    if (!links[id]) return res.status(404).send("Invalid link");
+    const model = links[id];
+    if (!model) return res.status(404).send("Invalid link");
 
     const ip = getRealIp(req);
-    const ua = req.headers['user-agent'] || '';
-
     trackUserAction(ip, 'visit_secret');
 
+    const ua = req.headers['user-agent'] || '';
     if (isBot(req) || isTikTokInAppBrowser(ua) || isInstagramInAppBrowser(ua)) {
         return res.redirect('https://instagram.com/tu_perfil');
     }
 
-    return res.redirect(links[id]); // redirige al OnlyFans real
+    return res.redirect(model.onlyfans);
 });
 
-
-
-
-app.listen(port, () => {
-    console.log(`Server running on port ${port}`);
-});
+// -------------------------------------------
+app.listen(port, () => console.log(`Server running on port ${port}`));

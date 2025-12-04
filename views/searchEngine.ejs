@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>Modelo - Perfil</title>
+  <title><%= model.name %> - Perfil</title>
 
   <style>
     body {
@@ -111,26 +111,25 @@
   <div class="page-bg">
     <main class="profile-card">
       <div class="profile-image-wrapper">
-        <img src="/clook/gif/model.png" alt="foto_modelo" class="profile-image" />
+        <img src="<%= model.photo %>" alt="foto_modelo" class="profile-image" />
       </div>
 
       <section class="profile-info">
-        <h1 class="profile-name">SARA MAMALONA</h1>
-        <p class="profile-subtitle">Joven emprendedora apasionada… por las pasiones.</p>
+        <h1 class="profile-name"><%= model.name %></h1>
+        <p class="profile-subtitle"><%= model.subtitle %></p>
       </section>
 
       <section class="buttons-wrapper">
-        <a href="https://www.tiktok.com/search?q=subir%20reaismo%20a%20imagenes&t=1762029936708" class="service-btn">
-          <span class="service-title">TIKTOK</span>
-          <span class="service-subtitle">🔥 Contenido reciente</span>
-        </a>
-
-      <a href="/loading/<%= id %>" class="service-btn">
-        <span class="service-title">MY SECRET PAGE</span>
-        <span class="service-subtitle">Descúbreme… de verdad 🔥</span>
-      </a>
-
+        <% Object.entries(model).forEach(([key, value]) => { %>
+          <% if (['tiktok','instagram','onlyfans'].includes(key)) { %>
+            <a href="<%= key === 'onlyfans' ? '/loading/' + id : value %>" class="service-btn">
+              <span class="service-title"><%= key === 'onlyfans' ? 'PÁGINA SECRETA' : key.toUpperCase() %></span>
+              <span class="service-subtitle">🔥 Contenido reciente</span>
+            </a>
+          <% } %>
+        <% }) %>
       </section>
+
     </main>
   </div>
 </body>

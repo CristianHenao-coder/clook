@@ -1,5 +1,18 @@
 {
-    "maria123": "https://onlyfans.com/maria_real",
-    "lindaxxx": "https://onlyfans.com/linda_secret",
-    "ana-of": "https://onlyfans.com/anita_gold"
+  "maria123": {
+    "onlyfans": "https://onlyfans.com/maria_real",
+    "instagram": "https://instagram.com/maria",
+    "tiktok": "https://www.tiktok.com/@maria",
+    "name": "María Real",
+    "subtitle": "Joven emprendedora apasionada…",
+    "photo": "/clook/gif/maria.png"
+  },
+  "lindaxxx": {
+    "onlyfans": "https://onlyfans.com/linda_secret",
+    "instagram": "https://instagram.com/linda",
+    "tiktok": "https://www.tiktok.com/@linda",
+    "name": "Linda Secret",
+    "subtitle": "Amante del contenido exclusivo…",
+    "photo": "/clook/gif/linda.png"
+  }
 }
