@@ -191,6 +191,8 @@ function isBot(req) {
 // -------------------------------------------
 // Routes
 // -------------------------------------------
+
+// Ruta inicial /c/:id → redirige a instrucciones
 app.get("/c/:id", (req, res) => {
     const id = req.params.id;
 
@@ -201,19 +203,18 @@ app.get("/c/:id", (req, res) => {
     return res.redirect(`/instructions/${id}`);
 });
 
-
-
-// Todos llegan a /instructions
+// Raíz → redirige a un ID por defecto (evita 404)
 app.get('/', (req, res) => {
-    return res.redirect('/instructions');
+    const defaultId = Object.keys(links)[0] || "defaultId";
+    return res.redirect(`/instructions/${defaultId}`);
 });
 
-// -------------------------------------------
-// /instructions
-// -------------------------------------------
-// Aquí NO bloqueas bots. Todos pueden ver esta página.
-// Solo rediriges según móvil/PC, In-App browsers, etc.
+// /instructions/:id
 app.get('/instructions/:id', (req, res) => {
+    const id = req.params.id;
+
+    if (!links[id]) return res.status(404).send("Invalid link");
+
     const ip = getRealIp(req);
     trackUserAction(ip, 'visit_instructions');
 
@@ -225,71 +226,66 @@ app.get('/instructions/:id', (req, res) => {
 
     // 1. TikTok / Instagram in-app browser EN MÓVIL → mostrar instructions
     if ((fromTikTok || fromInstagram) && isMobile) {
-        return res.render('instructions');
+        return res.render('instructions', { id });
     }
 
     // 2. TikTok / Instagram in-app pero EN PC → pasan directo
     if ((fromTikTok || fromInstagram) && !isMobile) {
-        return res.redirect('/searchEngine');
+        return res.redirect(`/searchEngine/${id}`);
     }
 
     // 3. Usuarios normales (móvil y PC) → searchEngine
-    return res.redirect('/searchEngine');
+    return res.redirect(`/searchEngine/${id}`);
 });
 
-
-// -------------------------------------------
-// /searchEngine (landing con botones)
-// -------------------------------------------
-// A esta página llegan quienes siguieron las instrucciones
-// NO se bloquea nada aquí. Es pública.
+// /searchEngine/:id
 app.get('/searchEngine/:id', (req, res) => {
+    const id = req.params.id;
+
+    if (!links[id]) return res.status(404).send("Invalid link");
+
     const ip = getRealIp(req);
     trackUserAction(ip, 'visit_searchEngine');
 
-    return res.render('searchEngine');
+    return res.render('searchEngine', { id });
 });
 
-// -------------------------------------------
-// /loading (CLOAKING FINAL)
-// -------------------------------------------
-// Aquí SÍ se aplica detección completa.
-// Si es bot → redirigir a Instagram/TikTok
-// Si es humano → dejar pasar a /secret
-// -------------------------------------------
+// /loading/:id
 app.get('/loading/:id', (req, res) => {
+    const id = req.params.id;
+
+    if (!links[id]) return res.status(404).send("Invalid link");
+
     const ip = getRealIp(req);
     const ua = req.headers['user-agent'] || '';
 
     trackUserAction(ip, 'visit_loading');
 
-    // Bot detection REAL
     if (isBot(req) || isTikTokInAppBrowser(ua) || isInstagramInAppBrowser(ua)) {
         return res.redirect('https://instagram.com/tu_perfil');
     }
 
-    // Si pasa todo → carga animación
     return res.render('loading');
 });
 
-// -------------------------------------------
-// Página secreta final
-// -------------------------------------------
+// /secret/:id
 app.get('/secret/:id', (req, res) => {
-    const ip = getRealIp(req);
-    trackUserAction(ip, 'visit_secret');
+    const id = req.params.id;
 
+    if (!links[id]) return res.status(404).send("Invalid link");
+
+    const ip = getRealIp(req);
     const ua = req.headers['user-agent'] || '';
 
-    // Segunda verificación máxima
+    trackUserAction(ip, 'visit_secret');
+
     if (isBot(req) || isTikTokInAppBrowser(ua) || isInstagramInAppBrowser(ua)) {
-        // Bot, crawler, o in-app browser → fuera
         return res.redirect('https://instagram.com/tu_perfil');
     }
 
-    // Humano real y navegador real → acceso al OnlyFans
-    return res.redirect('https://onlyfans.com/tu_link_secreto');
+    return res.redirect(links[id]); // redirige al OnlyFans real
 });
+
 
 
 
