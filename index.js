@@ -250,7 +250,6 @@ app.get('/searchEngine/:id', (req, res) => {
     return res.render('searchEngine', { id });
 });
 
-// /loading/:id
 app.get('/loading/:id', (req, res) => {
     const id = req.params.id;
 
@@ -261,12 +260,14 @@ app.get('/loading/:id', (req, res) => {
 
     trackUserAction(ip, 'visit_loading');
 
+    // Bot detection
     if (isBot(req) || isTikTokInAppBrowser(ua) || isInstagramInAppBrowser(ua)) {
         return res.redirect('https://instagram.com/tu_perfil');
     }
 
-    return res.render('loading');
+    return res.render('loading', { id }); // <-- pasa el id
 });
+
 
 // /secret/:id
 app.get('/secret/:id', (req, res) => {
