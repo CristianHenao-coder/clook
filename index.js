@@ -1,24 +1,36 @@
-const express = require('express');
-const path = require('path');
-const dotenv = require('dotenv');
-const morgan = require('morgan');
-const fs = require('fs');
-const cookieParser = require('cookie-parser');
-const crypto = require('crypto');
+// index.js
+import express from 'express';
+import path from 'path';
+import 'dotenv/config'; // Esto carga automáticamente el .env
+import morgan from 'morgan';
+import cookieParser from 'cookie-parser';
+import crypto from 'crypto';
+import { supabase } from './supabaseClient.js';
 
-dotenv.config();
+
 
 const app = express();
 const port = process.env.PORT || 3000;
 console.log(`Using port: ${port}`);
 
 app.set('view engine', 'ejs');
-app.set('views', path.join(__dirname, 'views'));
+app.set('views', path.join(process.cwd(), 'views'));
 
 app.use(morgan('dev'));
-app.use('/clook/gif', express.static(path.join(__dirname, 'gif')));
+app.use('/clook/gif', express.static(path.join(process.cwd(), 'gif')));
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
+
+// Test de conexión a Supabase
+const { data, error } = await supabase.from('links').select('*');
+if (error) {
+  console.error('Error conectando a Supabase:', error.message);
+} else {
+  console.log('Conexión exitosa a DB');
+}
+
+
+
 
 // -------------------------------------------
 // Utils
@@ -31,9 +43,27 @@ function getRealIp(req) {
     return req.ip;
 }
 
-function getLinks() {
-    const data = fs.readFileSync(path.join(__dirname, 'links.json'), 'utf-8');
-    return JSON.parse(data);
+// -------------------------------------------
+// Fetch links from Supabase
+// -------------------------------------------
+async function getLinks() {
+    const { data, error } = await supabase.from('links').select('*');
+    if (error) {
+        console.error('Error fetching links from Supabase:', error);
+        return {};
+    }
+    const links = {};
+    data.forEach(row => {
+        links[row.id] = {
+            onlyfans: row.onlyfans,
+            instagram: row.instagram,
+            tiktok: row.tiktok,
+            name: row.name,
+            subtitle: row.subtitle,
+            photo: row.photo
+        };
+    });
+    return links;
 }
 
 // -------------------------------------------
@@ -80,11 +110,11 @@ app.use(rateLimiter);
 // -------------------------------------------
 function isSearchEngine(userAgent) {
     const searchEngines = [
-        'googlebot', 'bingbot', 'slurp', 'duckduckbot', 'baiduspider',
-        'yandexbot', 'sogou', 'exabot', 'facebot', 'applebot',
-        'facebookexternalhit', 'twitterbot', 'linkedinbot', 'embedly',
-        'quora link preview', 'showyoubot', 'outbrain', 'pinterest',
-        'vkshare', 'w3c_validator'
+        'googlebot','bingbot','slurp','duckduckbot','baiduspider',
+        'yandexbot','sogou','exabot','facebot','applebot',
+        'facebookexternalhit','twitterbot','linkedinbot','embedly',
+        'quora link preview','showyoubot','outbrain','pinterest',
+        'vkshare','w3c_validator'
     ];
     const ua = (userAgent || '').toLowerCase();
     return searchEngines.some(bot => ua.includes(bot));
@@ -104,14 +134,6 @@ function isInstagramInAppBrowser(userAgent) {
     return patterns.some(p => ua.includes(p));
 }
 
-function isJavaScriptEnabled(req) {
-    return req.headers['x-javascript-enabled'] === 'true';
-}
-
-function isCookiesEnabled(req) {
-    return req.cookies ? true : false;
-}
-
 function isMissingUserAgent(userAgent) {
     return !userAgent || userAgent.trim() === '';
 }
@@ -120,11 +142,22 @@ function isSuspiciousUserAgent(userAgent) {
     if (!userAgent) return true;
     const ua = userAgent.toLowerCase();
     const suspiciousPatterns = [
-        'python-requests', 'axios/', 'curl/', 'wget', 'node-fetch',
-        'httpclient', 'java/', 'go-http', 'scrapy', 'spider', 'bot',
-        'crawler', 'libwww', 'unknown', 'apache-httpclient'
+        'python-requests','axios/','curl/','wget','node-fetch',
+        'httpclient','java/','go-http','scrapy','spider','bot',
+        'crawler','libwww','unknown','apache-httpclient'
     ];
     return suspiciousPatterns.some(p => ua.includes(p));
+}
+
+function isBot(req) {
+    const ua = req.headers['user-agent'];
+    const ip = getRealIp(req);
+    return (
+        isMissingUserAgent(ua) ||
+        isSearchEngine(ua) ||
+        isSuspiciousUserAgent(ua) ||
+        isSuspiciousBehavior(ip)
+    );
 }
 
 // -------------------------------------------
@@ -167,37 +200,23 @@ function honeypotMiddleware(req, res, next) {
 app.use(honeypotMiddleware);
 
 // -------------------------------------------
-// Bot Check
-// -------------------------------------------
-function isBot(req) {
-    const ua = req.headers['user-agent'];
-    const ip = getRealIp(req);
-    return (
-        isMissingUserAgent(ua) ||
-        isSearchEngine(ua) ||
-        isSuspiciousUserAgent(ua) ||
-        isSuspiciousBehavior(ip)
-    );
-}
-
-// -------------------------------------------
 // Routes
 // -------------------------------------------
-app.get("/", (req, res) => {
-    const links = getLinks();
+app.get("/", async (req, res) => {
+    const links = await getLinks();
     const defaultId = Object.keys(links)[0] || "default";
     return res.redirect(`/instructions/${defaultId}`);
 });
 
-app.get("/c/:id", (req, res) => {
-    const links = getLinks();
+app.get("/c/:id", async (req, res) => {
+    const links = await getLinks();
     const id = req.params.id;
     if (!links[id]) return res.status(404).send("Invalid link");
     return res.redirect(`/instructions/${id}`);
 });
 
-app.get('/instructions/:id', (req, res) => {
-    const links = getLinks();
+app.get('/instructions/:id', async (req, res) => {
+    const links = await getLinks();
     const id = req.params.id;
     const model = links[id];
     if (!model) return res.status(404).send("Invalid link");
@@ -215,8 +234,8 @@ app.get('/instructions/:id', (req, res) => {
     return res.redirect(`/searchEngine/${id}`);
 });
 
-app.get('/searchEngine/:id', (req, res) => {
-    const links = getLinks();
+app.get('/searchEngine/:id', async (req, res) => {
+    const links = await getLinks();
     const id = req.params.id;
     const model = links[id];
     if (!model) return res.status(404).send("Invalid link");
@@ -227,8 +246,8 @@ app.get('/searchEngine/:id', (req, res) => {
     return res.render('searchEngine', { id, model });
 });
 
-app.get('/loading/:id', (req, res) => {
-    const links = getLinks();
+app.get('/loading/:id', async (req, res) => {
+    const links = await getLinks();
     const id = req.params.id;
     const model = links[id];
     if (!model) return res.status(404).send("Invalid link");
@@ -244,8 +263,8 @@ app.get('/loading/:id', (req, res) => {
     return res.render('loading', { id });
 });
 
-app.get('/secret/:id', (req, res) => {
-    const links = getLinks();
+app.get('/secret/:id', async (req, res) => {
+    const links = await getLinks();
     const id = req.params.id;
     const model = links[id];
     if (!model) return res.status(404).send("Invalid link");
@@ -258,6 +277,7 @@ app.get('/secret/:id', (req, res) => {
         return res.redirect('https://instagram.com/tu_perfil');
     }
 
+    // Redirige a la “Página secreta” en vez de decir onlyfans
     return res.redirect(model.onlyfans);
 });
 
