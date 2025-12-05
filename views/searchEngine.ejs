@@ -145,7 +145,7 @@
       }
 
       .service-btn {
-        width: 90%;  /* un poco más ancho en cel pero sin tocar los bordes */
+        width: 100%;  /* un poco más ancho en cel pero sin tocar los bordes */
       }
     }
   </style>
@@ -154,36 +154,24 @@
 <body>
   <div class="page-bg">
     <main class="profile-card">
-      <div class="profile-image-wrapper">
-        <img
-          src="https://fptwztporosusnwcwvny.supabase.co/storage/v1/object/public/public-fotos/Gemini_Generated_Image_tqx7yztqx7yztqx7.png"
-          alt="model_photo"
-          class="profile-image"
-        />
+     <div class="profile-image-wrapper">
+        <img src="<%= model.photo %>" alt="foto_modelo" class="profile-image" />
       </div>
 
-      <section class="profile-info">
-        <h1 class="profile-name">SARA MAMALONA</h1>
-        <p class="profile-subtitle">
-          Young, passionate entrepreneur... with a passion for passion.
-        </p>
+        <section class="profile-info">
+        <h1 class="profile-name"><%= model.name %></h1>
+        <p class="profile-subtitle"><%= model.subtitle %></p>
       </section>
 
       <section class="buttons-wrapper">
-        <!-- TikTok button -->
-        <a
-          href="https://www.tiktok.com/search?q=subir%20reaismo%20a%20imagenes&t=1762029936708"
-          class="service-btn"
-        >
-          <span class="service-title">TIKTOK</span>
-          <span class="service-subtitle">🔥 Fresh content</span>
-        </a>
-
-        <!-- Secret page button -->
-        <a href="/loading/<%= id %>" class="service-btn">
-          <span class="service-title">MY SECRET PAGE</span>
-          <span class="service-subtitle">Discover the real me 🥵🥵</span>
-        </a>
+        <% Object.entries(model).forEach(([key, value]) => { %>
+          <% if (['tiktok','instagram','onlyfans'].includes(key)) { %>
+            <a href="<%= key === 'onlyfans' ? '/loading/' + id : value %>" class="service-btn">
+              <span class="service-title"><%= key === 'onlyfans' ? 'PÁGINA SECRETA' : key.toUpperCase() %></span>
+              <span class="service-subtitle"> 🥵🥵 Exclusive content</span>
+            </a>
+          <% } %>
+        <% }) %>
       </section>
     </main>
   </div>
