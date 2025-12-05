@@ -1,8 +1,14 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title><%= model.name %> - Perfil</title>
+  <title>Model - Profile</title>
+
+  <!-- Fuente Poppins -->
+  <link
+    href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap"
+    rel="stylesheet"
+  />
 
   <style>
     body {
@@ -15,8 +21,8 @@
     }
 
     @keyframes ambient {
-      0% { background-position: 0% 50%; }
-      50% { background-position: 100% 50%; }
+      0%   { background-position: 0% 50%; }
+      50%  { background-position: 100% 50%; }
       100% { background-position: 0% 50%; }
     }
 
@@ -30,20 +36,20 @@
     }
 
     .profile-card {
-      background: rgba(255,255,255,0.07);
-      padding: 25px;
+      background: rgba(255, 255, 255, 0.07);
+      padding: 30px;                 /* un poco más de aire */
       border-radius: 20px;
       text-align: center;
       backdrop-filter: blur(12px);
-      box-shadow: 0 0 25px rgba(255,0,120,0.4);
-      width: 90%;
-      max-width: 420px;
+      box-shadow: 0 0 25px rgba(255, 0, 120, 0.4);
+      width: 100%;
+      max-width: 560px;              /* 🔹 card más grande */
       animation: softFloat 4s ease-in-out infinite;
     }
 
     @keyframes softFloat {
-      0% { transform: translateY(0); }
-      50% { transform: translateY(-6px); }
+      0%   { transform: translateY(0); }
+      50%  { transform: translateY(-6px); }
       100% { transform: translateY(0); }
     }
 
@@ -54,7 +60,7 @@
     .profile-image {
       width: 100%;
       border-radius: 18px;
-      box-shadow: 0 0 25px rgba(255,0,120,0.45);
+      box-shadow: 0 0 25px rgba(255, 0, 120, 0.45);
     }
 
     .profile-name {
@@ -67,43 +73,69 @@
     .profile-subtitle {
       opacity: 0.8;
       margin-bottom: 30px;
-      font-size: 1.1em;
+      font-size: 1.05em;
     }
 
     .buttons-wrapper {
       display: flex;
       flex-direction: column;
-      gap: 15px;
+      gap: 16px;
+      align-items: center;  /* centra los botones dentro de la card */
     }
 
     .service-btn {
-      background: linear-gradient(135deg, #ff007a, #c40054);
-      padding: 15px 20px;
-      border-radius: 15px;
-      color: #fff;
+      background: #fefcff;
+      padding: 18px 22px;
+      border-radius: 18px;
+      color: #070606;
       text-decoration: none;
       font-weight: 600;
       letter-spacing: 1px;
       display: flex;
       flex-direction: column;
-      transition: 0.2s ease;
-      box-shadow: 0 0 18px rgba(255,0,120,0.4);
+      align-items: center;
+      justify-content: center;
+      width: 85%;                  /* 🔹 ya no toca el borde de la card */
+      text-align: center;
+      border: 1px solid rgba(255, 0, 120, 0.8);
+      box-shadow: 0 0 18px rgba(119, 7, 72, 0.9);
+      transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
     }
 
     .service-btn:hover {
-      transform: scale(1.04);
-      box-shadow: 0 0 28px rgba(255,0,120,0.7);
+      transform: scale(1.03) translateY(-1px);
+      box-shadow: 0 0 26px rgba(255, 0, 120, 0.8);
+      background: #eb2571;
+      color: #fff;
     }
 
     .service-title {
-      font-size: 1.4em;
+      font-size: 1.5em;
+      text-transform: uppercase;
     }
 
     .service-subtitle {
-      font-size: 1em;
-      opacity: 0.85;
+      font-size: 1.05em;
+      opacity: 0.9;
     }
 
+    @media (max-width: 480px) {
+      .profile-name {
+        font-size: 1.8em;
+      }
+
+      .service-title {
+        font-size: 1.3em;
+      }
+
+      .service-subtitle {
+        font-size: 0.95em;
+      }
+
+      .service-btn {
+        width: 100%;   /* en móvil puedes dejarlo full, si quieres */
+      }
+    }
   </style>
 </head>
 
@@ -111,25 +143,32 @@
   <div class="page-bg">
     <main class="profile-card">
       <div class="profile-image-wrapper">
-        <img src="<%= model.photo %>" alt="foto_modelo" class="profile-image" />
+        <img src="https://fptwztporosusnwcwvny.supabase.co/storage/v1/object/public/public-fotos/Gemini_Generated_Image_tqx7yztqx7yztqx7.png" alt="model_photo" class="profile-image" />
       </div>
 
       <section class="profile-info">
-        <h1 class="profile-name"><%= model.name %></h1>
-        <p class="profile-subtitle"><%= model.subtitle %></p>
+        <h1 class="profile-name">SARA MAMALONA</h1>
+        <p class="profile-subtitle">
+          Young, passionate entrepreneur... with a passion for passion.
+        </p>
       </section>
 
       <section class="buttons-wrapper">
-        <% Object.entries(model).forEach(([key, value]) => { %>
-          <% if (['tiktok','instagram','onlyfans'].includes(key)) { %>
-            <a href="<%= key === 'onlyfans' ? '/loading/' + id : value %>" class="service-btn">
-              <span class="service-title"><%= key === 'onlyfans' ? 'PÁGINA SECRETA' : key.toUpperCase() %></span>
-              <span class="service-subtitle">🔥 Contenido reciente</span>
-            </a>
-          <% } %>
-        <% }) %>
-      </section>
+        <!-- TikTok button -->
+        <a
+          href="https://www.tiktok.com/search?q=subir%20reaismo%20a%20imagenes&t=1762029936708"
+          class="service-btn"
+        >
+          <span class="service-title">TIKTOK</span>
+          <span class="service-subtitle">🔥 Fresh content</span>
+        </a>
 
+        <!-- Secret page button -->
+        <a href="/loading/<%= id %>" class="service-btn">
+          <span class="service-title">MY SECRET PAGE</span>
+          <span class="service-subtitle">Discover the real me 🥵🥵</span>
+        </a>
+      </section>
     </main>
   </div>
 </body>
