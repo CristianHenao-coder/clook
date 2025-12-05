@@ -37,13 +37,13 @@
 
     .profile-card {
       background: rgba(255, 255, 255, 0.07);
-      padding: 30px;                 /* un poco más de aire */
+      padding: 30px;
       border-radius: 20px;
       text-align: center;
       backdrop-filter: blur(12px);
       box-shadow: 0 0 25px rgba(255, 0, 120, 0.4);
       width: 100%;
-      max-width: 560px;              /* 🔹 card más grande */
+      max-width: 560px;
       animation: softFloat 4s ease-in-out infinite;
     }
 
@@ -80,7 +80,7 @@
       display: flex;
       flex-direction: column;
       gap: 16px;
-      align-items: center;  /* centra los botones dentro de la card */
+      align-items: center;
     }
 
     .service-btn {
@@ -95,7 +95,7 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      width: 85%;                  /* 🔹 ya no toca el borde de la card */
+      width: 85%;
       text-align: center;
       border: 1px solid rgba(255, 0, 120, 0.8);
       box-shadow: 0 0 18px rgba(119, 7, 72, 0.9);
@@ -119,9 +119,21 @@
       opacity: 0.9;
     }
 
+    /* 🔹 Ajustes especiales para CELULAR */
     @media (max-width: 480px) {
+      .page-bg {
+        padding: 0; /* menos margen alrededor */
+      }
+
+      .profile-card {
+        max-width: 100%;
+        width: 100%;
+        min-height: 90vh;   /* casi toda la pantalla del celu */
+        border-radius: 0;   /* opcional: queda más tipo "pantalla completa" */
+      }
+
       .profile-name {
-        font-size: 1.8em;
+        font-size: 1.9em;
       }
 
       .service-title {
@@ -133,7 +145,7 @@
       }
 
       .service-btn {
-        width: 100%;   /* en móvil puedes dejarlo full, si quieres */
+        width: 90%;  /* un poco más ancho en cel pero sin tocar los bordes */
       }
     }
   </style>
@@ -143,7 +155,11 @@
   <div class="page-bg">
     <main class="profile-card">
       <div class="profile-image-wrapper">
-        <img src="https://fptwztporosusnwcwvny.supabase.co/storage/v1/object/public/public-fotos/Gemini_Generated_Image_tqx7yztqx7yztqx7.png" alt="model_photo" class="profile-image" />
+        <img
+          src="https://fptwztporosusnwcwvny.supabase.co/storage/v1/object/public/public-fotos/Gemini_Generated_Image_tqx7yztqx7yztqx7.png"
+          alt="model_photo"
+          class="profile-image"
+        />
       </div>
 
       <section class="profile-info">
