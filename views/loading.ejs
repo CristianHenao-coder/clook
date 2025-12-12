@@ -63,7 +63,7 @@
       const secretPath = id ? (`/secret/${id}`) : '/secret';
       setTimeout(() => {
         try { location.replace(secretPath); } catch { location.href = secretPath; }
-      }, 800); // breve delay para UX y permitir cookies/challenge si aplica
+      }, 3000); // breve delay para UX y permitir cookies/challenge si aplica
     })();
   </script>
 </body>
