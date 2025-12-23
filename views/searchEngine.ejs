@@ -1,82 +1,161 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>Model - Profile</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title><%= model.name %> - Profile</title>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet" />
   <style>
-    *, *::before, *::after { box-sizing: border-box; }
-    html, body { margin: 0; padding: 0; min-height: 100%; }
-    body { font-family: 'Poppins', sans-serif; background: linear-gradient(145deg, #1a0012, #430027, #ff0077); background-size: 200% 200%; animation: ambient 12s ease infinite; color: #fff; }
-    @keyframes ambient { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
-    .page-bg { width:100%; min-height:100vh; display:flex; justify-content:center; align-items:center; padding:20px; }
-    .profile-card { background: rgba(255,255,255,.07); padding:30px; border-radius:20px; text-align:center; backdrop-filter: blur(12px);
-      box-shadow:0 0 25px rgba(255,0,120,.4); width:100%; max-width:560px; animation: softFloat 4s ease-in-out infinite; }
-    @keyframes softFloat { 0%{transform:translateY(0)} 50%{transform:translateY(-6px)} 100%{transform:translateY(0)} }
-    .profile-image-wrapper { margin-bottom:20px; }
-    .profile-image { width:100%; border-radius:18px; box-shadow:0 0 25px rgba(255,0,120,.45); }
-    .profile-name { font-size:2.2em; font-weight:700; margin-bottom:5px; letter-spacing:1px; }
-    .profile-subtitle { opacity:.8; margin-bottom:30px; font-size:1.05em; }
-    .buttons-wrapper { display:flex; flex-direction:column; gap:16px; align-items:center; }
-    .service-btn { background:#fefcff; padding:18px 22px; border-radius:18px; color:#070606; text-decoration:none; font-weight:600; letter-spacing:1px;
-      display:flex; flex-direction:column; align-items:center; justify-content:center; width:85%; text-align:center; border:1px solid rgba(255,0,120,.8);
-      box-shadow:0 0 18px rgba(119,7,72,.9); transition: transform .2s ease, box-shadow .2s ease, background .2s ease; }
-    .service-btn:hover { transform: scale(1.03) translateY(-1px); box-shadow:0 0 26px rgba(255,0,120,.8); background:#eb2571; color:#fff; }
-    .service-title { font-size:1.5em; text-transform:uppercase; }
-    .service-subtitle { font-size:1.05em; opacity:.9; }
-    @media (max-width:768px) {
-      .page-bg { padding:0; min-height:100vh; }
-      .profile-card { width:100%; max-width:100%; min-height:100vh; border-radius:0; box-shadow:none; padding:24px 16px 32px; display:flex; flex-direction:column; justify-content:center; }
-      .service-btn { width:90%; }
+    /* RESET PERFECCIONISTA */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
     }
-    @media (max-width:360px) {
-      .profile-name { font-size:1.6em; }
-      .profile-subtitle { font-size:.95em; margin-bottom:20px; }
-      .service-title { font-size:1.1em; }
-      .service-subtitle { font-size:.9em; }
-      .service-btn { padding:14px 16px; width:94%; }
+
+    html, body {
+      height: 100%;
+      width: 100%;
+      overflow: hidden; /* Evita scrolls laterales y mantiene el look de app */
+      font-family: 'Poppins', sans-serif;
+      background-color: #000;
     }
-    @media (max-width:260px) {
-      .profile-card { padding:16px 10px 24px; }
-      .profile-name { font-size:1.4em; }
-      .service-btn { padding:12px 10px; width:100%; }
+
+    /* CONTENEDOR DE PANTALLA COMPLETA */
+    .fullscreen-app {
+      height: 100dvh; /* Altura dinámica para navegadores móviles */
+      width: 100%;
+      position: relative;
+      /* Capa 1: El degradado para que el texto resalte. Capa 2: La foto de la base de datos */
+      background: linear-gradient(0deg, rgba(0,0,0,1) 5%, rgba(0,0,0,0.4) 50%, rgba(0,0,0,0) 100%), 
+                  url('<%= model.photo %>');
+      background-size: cover;
+      background-position: center top; /* Enfoca la parte superior (cara del modelo) */
+      
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end; /* Todo el contenido se va abajo como en la referencia */
+      align-items: center;
+      padding: 40px 20px;
+    }
+
+    /* INFO DEL MODELO */
+    .profile-info {
+      text-align: center;
+      color: white;
+      margin-bottom: 35px;
+      width: 100%;
+      animation: fadeInUp 0.8s ease-out;
+    }
+
+    .profile-name {
+      font-size: clamp(2rem, 9vw, 2.6rem);
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      margin-bottom: 4px;
+      text-shadow: 0 2px 15px rgba(0,0,0,0.8);
+    }
+
+    .profile-subtitle {
+      font-size: 1.05rem;
+      font-weight: 400;
+      opacity: 0.9;
+      max-width: 85%;
+      margin: 0 auto;
+      text-shadow: 0 1px 8px rgba(0,0,0,0.8);
+    }
+
+    /* CONTENEDOR DE BOTONES */
+    .buttons-wrapper {
+      width: 100%;
+      max-width: 480px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      animation: fadeInUp 1s ease-out;
+    }
+
+    /* BOTONES ESTILO REFERENCIA (OVALADOS Y TRASLÚCIDOS) */
+    .service-btn {
+      width: 100%;
+      padding: 18px 25px;
+      border-radius: 60px; /* Bordes totalmente redondeados */
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      background: rgba(255, 255, 255, 0.08); /* Fondo semi-transparente */
+      backdrop-filter: blur(12px); /* Efecto Glassmorphism */
+      -webkit-backdrop-filter: blur(12px);
+      color: #fff;
+      text-decoration: none;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .service-btn:active {
+      transform: scale(0.96); /* Efecto de presión al tocar en móvil */
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    .service-title {
+      font-weight: 600;
+      font-size: 1.1rem;
+      text-transform: capitalize; /* Para que luzca más natural */
+      letter-spacing: 0.5px;
+    }
+
+    .service-subtitle {
+      font-size: 0.8rem;
+      opacity: 0.7;
+      margin-top: 2px;
+    }
+
+    /* ANIMACIONES */
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* AJUSTES PARA PANTALLAS PEQUEÑAS (iPhone SE, etc) */
+    @media (max-height: 700px) {
+      .fullscreen-app { padding: 30px 20px; }
+      .profile-info { margin-bottom: 20px; }
+      .service-btn { padding: 14px 20px; }
+      .profile-name { font-size: 1.8rem; }
     }
   </style>
 </head>
 <body>
-  <% /* En modo landing (searchEngine), el botón secreto va a /loading → /secret → OnlyFans */ %>
+
+
   <% const loadingPath = (typeof id !== 'undefined' && id) ? ('/loading/' + id) : '/loading'; %>
 
-  <div class="page-bg">
-    <main class="profile-card">
-      <div class="profile-image-wrapper">
-        <img src="<%= model.photo %>" alt="foto_modelo" class="profile-image" />
-      </div>
+  <main class="fullscreen-app">
+    
+    <section class="profile-info">
+      <h1 class="profile-name"><%= model.name %></h1>
+      <p class="profile-subtitle"><%= model.subtitle %></p>
+    </section>
 
-      <section class="profile-info">
-        <h1 class="profile-name"><%= model.name %></h1>
-        <p class="profile-subtitle"><%= model.subtitle %></p>
-      </section>
+    <section class="buttons-wrapper">
+      <% Object.entries(model).forEach(([key, value]) => { %>
+        <% if (['tiktok','instagram','onlyfans'].includes(key) && value) { %>
+          <a href="<%= key === 'onlyfans' ? loadingPath : value %>" class="service-btn" rel="nofollow noopener">
+            <span class="service-title">
+              <%= key === 'onlyfans' ? 'MY SECRET PAGE' : key %>
+            </span>
+            <span class="service-subtitle">
+              <% if (key === 'onlyfans') { %> 😈 Contenido Exclusivo <% } %>
+              <% if (key === 'instagram') { %> Sígueme en Instagram <% } %>
+              <% if (key === 'tiktok') { %> Mira mis videos <% } %>
+            </span>
+          </a>
+        <% } %>
+      <% }) %>
+    </section>
 
-      <section class="buttons-wrapper">
-        <% Object.entries(model).forEach(([key, value]) => { %>
-          <% if (['tiktok','instagram','onlyfans'].includes(key) && value) { %>
-            <a href="<%= key === 'onlyfans' ? loadingPath : value %>" class="service-btn" rel="nofollow noopener">
-              <span class="service-title">
-                <%= key === 'onlyfans' ? 'MY SECRET PAGE' : key.toUpperCase() %>
-              </span>
-              <% if (key === 'onlyfans') { %>
-                <span class="service-subtitle">😈😈 Exclusive content</span>
-              <% } else if (key === 'tiktok') { %>
-                <span class="service-subtitle">Fresh content</span>
-              <% } else if (key === 'instagram') { %>
-                <span class="service-subtitle">Latest posts</span>
-              <% } %>
-            </a>
-          <% } %>
-        <% }) %>
-      </section>
-    </main>
-  </div>
+  </main>
+
 </body>
 </html>
