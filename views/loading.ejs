@@ -70,30 +70,44 @@
 
     // 3. Lógica de Redirección Segura
     async function startBridge() {
+      // Nueva forma más segura de obtener el ID desde el final de la URL
+      const pathParts = window.location.pathname.split('/');
+      // El ID suele ser la última parte de la URL
+      const id = pathParts[pathParts.length - 1];
+
+      // Si no hay ID o si por error capturamos la palabra "loading", detenemos
+      if (!id || id === 'loading') {
+        console.error("No se pudo detectar un ID válido en la URL");
+        return;
+      }
+
+      // Verificación de Bots (Cloaking)
       if (isBotOrInApp()) {
-        // Si es TikTok o un Bot, borramos la página y mostramos error falso
         document.body.innerHTML = "<div style='padding:50px; text-align:center;'><h1>404 Not Found</h1><p>The requested URL was not found on this server.</p></div>";
         return;
       }
 
-      // Obtenemos el ID de la ruta
-      const m = (location.pathname || '').match(/^\/loading\/([^\/?#]+)/i);
-      const id = m ? decodeURIComponent(m[1]) : null;
-
       try {
-        // Llamamos a tu API para obtener el link de forma segura (debes crear esta ruta en index.js)
+        // Intentamos obtener el link real de OnlyFans
         const response = await fetch('/api/v1/gate/' + id);
+        
+        if (!response.ok) {
+          throw new Error("Respuesta del servidor no válida");
+        }
+
         const json = await response.json();
         
         if (json.data) {
-          // Decodificamos el Base64 (atob)
+          // Decodificamos el Base64
           const target = atob(json.data);
+          // Redireccionamos tras el delay de UX
           setTimeout(() => {
             window.location.replace(target);
           }, 3500);
         }
       } catch (err) {
-        console.error("Error securing connection");
+        console.error("Error securing connection:", err);
+        // Si hay un error, podrías redirigir a una página de inicio segura
       }
     }
 
