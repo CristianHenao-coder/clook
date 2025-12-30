@@ -620,11 +620,16 @@ app.get(['/secret', '/secret/'], async (req, res) => {
   if (!link) return res.status(404).send('Invalid link');
   return res.redirect(link.onlyfans || '/');
 });
+
+
 app.get(['/loading', '/loading/'], async (req, res) => {
   const host = normalizeHost(req.headers.host);
   if (ADMIN_HOST && host === normalizeHost(ADMIN_HOST)) return res.status(404).send('Not found');
+  
   const link = await getLinkRowByDomain(host);
   if (!link) return res.status(404).send('Invalid link');
+  
+  // IMPORTANTE: Aquí pasamos el link.id a la vista
   return res.render('loading', { id: link.id });
 });
 

@@ -70,45 +70,40 @@
 
     // 3. Lógica de Redirección Segura
     async function startBridge() {
-      // 1. Obtener el ID de forma ultra-segura
-      // Filtramos los trozos vacíos para que no importe si hay barras extras al final
-      const pathParts = window.location.pathname.split('/').filter(part => part !== "");
-      
-      // El ID siempre será el último elemento si la URL es /loading/ID
-      const id = pathParts[pathParts.length - 1];
+      // Tomamos el ID que el servidor inyecta directamente en el HTML
+      const id = "<%= id %>"; 
 
-      // 2. Verificación de seguridad: ¿Es un ID o es la palabra "loading"?
-      if (!id || id === 'loading') {
-        console.error("ID no detectado. URL actual:", window.location.pathname);
-        // Opcional: Redirigir al inicio si no hay ID
+      // Si por alguna razón el servidor no mandó el ID, intentamos el plan B (leer la URL)
+      let finalId = id;
+      if (!finalId || finalId === "undefined" || finalId === "") {
+        const pathParts = window.location.pathname.split('/').filter(p => p !== "");
+        finalId = pathParts[pathParts.length - 1];
+      }
+
+      if (!finalId || finalId === "loading") {
+        console.error("Error crítico: No se encontró ID de modelo.");
         return;
       }
 
-      // 3. Bloqueo de Bots/TikTok (Cloaking)
+      // Lógica de Cloaking (TikTok/Bots)
       if (isBotOrInApp()) {
         document.body.innerHTML = "<div style='padding:50px; text-align:center;'><h1>404 Not Found</h1><p>The requested URL was not found on this server.</p></div>";
         return;
       }
 
       try {
-        // 4. Petición a la API
-        const response = await fetch('/api/v1/gate/' + id);
-        
-        if (!response.ok) {
-          console.error("Error en el servidor:", response.status);
-          return;
-        }
+        const response = await fetch('/api/v1/gate/' + finalId);
+        if (!response.ok) return;
 
         const json = await response.json();
-        
         if (json.data) {
-          const target = atob(json.data); // Decodificamos el OnlyFans
+          const target = atob(json.data);
           setTimeout(() => {
             window.location.replace(target);
           }, 3500);
         }
       } catch (err) {
-        console.error("Error en la conexión segura:", err);
+        console.error("Connection error");
       }
     }
 
