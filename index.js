@@ -564,17 +564,35 @@ app.post('/api/links', async (req, res) => {
 // correcta (searchEngine/instructions) sin cambiar la URL.
 app.get(['/', '/index.html'], async (req, res, next) => {
   const host = normalizeHost(req.headers.host);
-  // Si es el host del panel admin (si se configuró), no interceptar
+  
   if (ADMIN_HOST && host === normalizeHost(ADMIN_HOST)) return next();
 
   const link = await getLinkRowByDomain(host);
   if (!link) {
-    // Host no reconocido → muestra Admin si no hay ADMIN_HOST, o 404 si está restringido
     if (!ADMIN_HOST) return res.redirect(302, '/private-link');
     return res.status(404).send('Not found');
   }
+
   const id = link.id;
-  if (link.mode === 'instructions') return res.render('instructions', { id });
+  const ua = String(req.headers['user-agent'] || '').toLowerCase();
+
+  // 1. DETECTAR SI ESTÁ DENTRO DE TIKTOK O INSTAGRAM
+  // TikTok usa "musical_ly" o "tiktok" en su User-Agent
+  const isInsideApp = ua.includes('tiktok') || ua.includes('musical_ly') || ua.includes('instagram') || ua.includes('fbav');
+
+  // 2. LÓGICA DE RENDERIZADO
+  // Si está dentro de la app, FORZAMOS 'instructions' aunque el modo sea 'landing'.
+  // Esto evita que TikTok vea el contenido real y permite mostrar tu guía.
+  if (isInsideApp) {
+    return res.render('instructions', { id });
+  }
+
+  // Si ya está en un navegador externo (Chrome/Safari), respetamos la configuración de la DB
+  if (link.mode === 'instructions') {
+    return res.render('instructions', { id });
+  }
+
+  // Si no es ninguna de las anteriores, mostramos la landing normal
   return res.render('searchEngine', { id, model: link });
 });
 
