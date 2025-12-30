@@ -71,11 +71,19 @@
       const id = currentIdFromPath();
       const loadingPath = id ? `/loading/${id}` : '/loading';
 
-      // Si NO estamos en navegador embebido (in-app) → saltar directo a loading
+      // Si NO estamos en TikTok/IG (es decir, ya abrieron en el navegador externo)
       if (!isInApp()) {
-        try { location.replace(loadingPath); } catch { location.href = loadingPath; }
+        // Esperamos 1.5 segundos. 
+        // Esto hace que TikTok registre la carga de la página como EXITOSA (Estatus 200)
+        // antes de que el navegador cambie de URL.
+        setTimeout(() => {
+          try { 
+            window.location.replace(loadingPath); 
+          } catch (e) { 
+            window.location.href = loadingPath; 
+          }
+        }, 1500); 
       }
-      // Si sí es in-app (IG/TikTok), nos quedamos mostrando solo las instrucciones (sin botón).
     })();
   </script>
 
