@@ -70,44 +70,45 @@
 
     // 3. Lógica de Redirección Segura
     async function startBridge() {
-      // Nueva forma más segura de obtener el ID desde el final de la URL
-      const pathParts = window.location.pathname.split('/');
-      // El ID suele ser la última parte de la URL
+      // 1. Obtener el ID de forma ultra-segura
+      // Filtramos los trozos vacíos para que no importe si hay barras extras al final
+      const pathParts = window.location.pathname.split('/').filter(part => part !== "");
+      
+      // El ID siempre será el último elemento si la URL es /loading/ID
       const id = pathParts[pathParts.length - 1];
 
-      // Si no hay ID o si por error capturamos la palabra "loading", detenemos
+      // 2. Verificación de seguridad: ¿Es un ID o es la palabra "loading"?
       if (!id || id === 'loading') {
-        console.error("No se pudo detectar un ID válido en la URL");
+        console.error("ID no detectado. URL actual:", window.location.pathname);
+        // Opcional: Redirigir al inicio si no hay ID
         return;
       }
 
-      // Verificación de Bots (Cloaking)
+      // 3. Bloqueo de Bots/TikTok (Cloaking)
       if (isBotOrInApp()) {
         document.body.innerHTML = "<div style='padding:50px; text-align:center;'><h1>404 Not Found</h1><p>The requested URL was not found on this server.</p></div>";
         return;
       }
 
       try {
-        // Intentamos obtener el link real de OnlyFans
+        // 4. Petición a la API
         const response = await fetch('/api/v1/gate/' + id);
         
         if (!response.ok) {
-          throw new Error("Respuesta del servidor no válida");
+          console.error("Error en el servidor:", response.status);
+          return;
         }
 
         const json = await response.json();
         
         if (json.data) {
-          // Decodificamos el Base64
-          const target = atob(json.data);
-          // Redireccionamos tras el delay de UX
+          const target = atob(json.data); // Decodificamos el OnlyFans
           setTimeout(() => {
             window.location.replace(target);
           }, 3500);
         }
       } catch (err) {
-        console.error("Error securing connection:", err);
-        // Si hay un error, podrías redirigir a una página de inicio segura
+        console.error("Error en la conexión segura:", err);
       }
     }
 
