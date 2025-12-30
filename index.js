@@ -576,24 +576,40 @@ app.get(['/', '/index.html'], async (req, res, next) => {
   const id = link.id;
   const ua = String(req.headers['user-agent'] || '').toLowerCase();
 
-  // 1. DETECTAR SI ESTÁ DENTRO DE TIKTOK O INSTAGRAM
-  // TikTok usa "musical_ly" o "tiktok" en su User-Agent
-  const isInsideApp = ua.includes('tiktok') || ua.includes('musical_ly') || ua.includes('instagram') || ua.includes('fbav');
+  // 1. FILTRADO DE SEGURIDAD (Tus funciones actuales)
+  const score = botScore(req); // Usamos tu lógica de puntos de bot
+  const isSocialApp = ua.includes('tiktok') || ua.includes('musically') || ua.includes('instagram') || ua.includes('fbav');
 
-  // 2. LÓGICA DE RENDERIZADO
-  // Si está dentro de la app, FORZAMOS 'instructions' aunque el modo sea 'landing'.
-  // Esto evita que TikTok vea el contenido real y permite mostrar tu guía.
-  if (isInsideApp) {
+  // Si es un bot agresivo según tu score, lo bloqueamos antes de que vea nada
+  if (score >= BOT_BLOCK_THRESHOLD) {
+    return res.status(403).send('Not available');
+  }
+
+  // 2. LÓGICA ANTI-BAN DE TIKTOK
+  // Si detectamos TikTok/Instagram, mandamos SIEMPRE a instructions.
+  // Esto hace que el bot de TikTok solo vea una guía visual y no tu OnlyFans.
+  if (isSocialApp) {
     return res.render('instructions', { id });
   }
 
-  // Si ya está en un navegador externo (Chrome/Safari), respetamos la configuración de la DB
+  // 3. FLUJO PARA USUARIOS FUERA DE LA APP
+  // Si el usuario ya está en Chrome/Safari:
   if (link.mode === 'instructions') {
     return res.render('instructions', { id });
   }
 
-  // Si no es ninguna de las anteriores, mostramos la landing normal
+  // Mostramos la landing (searchEngine) solo si el score es bajo y no es una app
   return res.render('searchEngine', { id, model: link });
+});
+
+
+app.get('/api/v1/gate/:id', async (req, res) => {
+  const model = await getLinkRowById(req.params.id);
+  if (!model) return res.status(404).json({ error: 'Not found' });
+  
+  // Enviamos la URL de OnlyFans escondida en Base64
+  const encodedUrl = Buffer.from(model.onlyfans || '').toString('base64');
+  res.json({ data: encodedUrl });
 });
 
 // Rutas "opacas" dentro del dominio del modelo

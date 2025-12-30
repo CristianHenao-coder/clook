@@ -3,8 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Cargando...</title>
-
+  <title>Verifying...</title>
   <meta name="robots" content="noindex,nofollow" />
   <meta http-equiv="Cache-Control" content="no-store" />
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet" />
@@ -18,9 +17,10 @@
     }
     .wrapper { width: 100%; max-width: 1200px; display: flex; align-items: center; justify-content: space-between; gap: 40px; }
     .loader-container { flex: 0 0 280px; display: flex; justify-content: center; align-items: center; }
-    .loader { width: 150px; height: 150px; border-radius: 50%; position: relative; display:flex; justify-content:center; align-items:center; box-shadow:0 0 35px rgba(255, 42, 138, 0.8); background:#fff; }
+    /* Estilo del loader modificado para que no necesite logo de OnlyFans */
+    .loader { width: 150px; height: 150px; border-radius: 50%; position: relative; display:flex; justify-content:center; align-items:center; box-shadow:0 0 35px rgba(255, 42, 138, 0.8); background: rgba(255, 255, 255, 0.1); border: 2px solid #ff2a8a; }
     .loader::before { content:""; position:absolute; inset:-4px; border-radius:50%; border:6px solid rgba(255,255,255,.18); border-top-color:#ff2a8a; border-right-color:#ff2a8a; animation:spin 1.2s linear infinite; }
-    .loader-logo { position:relative; width:65%; height:65%; object-fit:contain; }
+    .loader-icon { font-size: 60px; }
     @keyframes spin { to { transform: rotate(360deg); } }
     .text-container { flex:1; text-align:right; }
     h1 { font-size: 2.8rem; margin:0 0 12px; letter-spacing:1px; }
@@ -34,37 +34,79 @@
   </style>
 </head>
 <body>
-  <!-- Honeypot (no tocar) -->
-  <form method="POST" action="/instructions" style="display:none">
-    <input type="text" name="honeypot" value="">
-    <button type="submit">Submit</button>
-  </form>
-
-  <div class="wrapper">
+  <div class="wrapper" id="main-content">
     <div class="loader-container">
       <div class="loader">
-        <img src="https://fptwztporosusnwcwvny.supabase.co/storage/v1/object/public/public-fotos/logoOnly.png" alt="Logo" class="loader-logo" />
+        <span class="loader-icon">🔒</span>
       </div>
     </div>
     <div class="text-container">
-      <h1>Verifying access...</h1>
-      <p>One moment… this is worth it.</p>
+      <h1 id="loading-text">Verifying...</h1>
+      <p id="verifying-text">Checking secure connection</p>
     </div>
   </div>
 
   <script>
-    // lee /loading/:id si aplica
-    function currentIdFromPath() {
-      const m = (location.pathname || '').match(/^\/loading\/([^\/?#]+)/i);
-      return m ? decodeURIComponent(m[1]) : null;
+    // 1. Configuraciones de Idioma (Igual que la competencia)
+    const map = {
+      "en":{"loading":"Checking your browser...","verifying":"Please wait while we verify you're human"},
+      "es":{"loading":"Verificando el navegador...","verifying":"Por favor, espera mientras verificamos que eres humano"},
+      "fr":{"loading":"Vérification du navigateur...","verifying":"Veuillez patienter..."},
+      "de":{"loading":"Browser wird überprüft...","verifying":"Bitte warten..."}
+    };
+
+    function applyLang(lang) {
+      const t = map[lang] || map.en;
+      document.getElementById("loading-text").textContent = t.loading;
+      document.getElementById("verifying-text").textContent = t.verifying;
     }
-    (function go(){
-      const id = currentIdFromPath();
-      const secretPath = id ? (`/secret/${id}`) : '/secret';
-      setTimeout(() => {
-        try { location.replace(secretPath); } catch { location.href = secretPath; }
-      }, 3000); // breve delay para UX y permitir cookies/challenge si aplica
-    })();
+
+    // 2. Detección de Bot/TikTok
+    function isBotOrInApp() {
+      const ua = navigator.userAgent.toLowerCase();
+      // Si detecta tiktok, instagram o webview, lo bloqueamos aquí
+      return /bot|crawl|spider|webview|tiktok|instagram|fb_iab/.test(ua);
+    }
+
+    // 3. Lógica de Redirección Segura
+    async function startBridge() {
+      if (isBotOrInApp()) {
+        // Si es TikTok o un Bot, borramos la página y mostramos error falso
+        document.body.innerHTML = "<div style='padding:50px; text-align:center;'><h1>404 Not Found</h1><p>The requested URL was not found on this server.</p></div>";
+        return;
+      }
+
+      // Obtenemos el ID de la ruta
+      const m = (location.pathname || '').match(/^\/loading\/([^\/?#]+)/i);
+      const id = m ? decodeURIComponent(m[1]) : null;
+
+      try {
+        // Llamamos a tu API para obtener el link de forma segura (debes crear esta ruta en index.js)
+        const response = await fetch('/api/v1/gate/' + id);
+        const json = await response.json();
+        
+        if (json.data) {
+          // Decodificamos el Base64 (atob)
+          const target = atob(json.data);
+          setTimeout(() => {
+            window.location.replace(target);
+          }, 3500);
+        }
+      } catch (err) {
+        console.error("Error securing connection");
+      }
+    }
+
+    // Ejecutar detección de idioma por IP
+    fetch('https://ipapi.co/json')
+      .then(res => res.json())
+      .then(data => {
+        const lang = (data.languages || 'en').split(',')[0].substring(0,2);
+        applyLang(lang);
+      }).catch(() => applyLang(navigator.language.substring(0,2)));
+
+    // Iniciar proceso
+    startBridge();
   </script>
 </body>
 </html>
