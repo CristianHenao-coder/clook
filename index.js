@@ -675,7 +675,13 @@ app.post('/api/links', async (req, res) => {
         const slug = (req.params.slug || '').trim();
         if (RESERVED_PREFIXES.has(slug.toLowerCase())) return next();
         if (!looksLikeSlug(slug)) return next();
-        return res.redirect(302, `/searchEngine/${slug}`);
+
+        const link = await getLinkRowById(slug);
+        if (!link) return next();
+
+        // En lugar de redirigir, RENDERIZAMOS directamente la landing
+        // Esto entrega un Status 200 al bot de TikTok
+        return res.render('searchEngine', { id: slug, model: link });
       } catch (e) {
         return res.status(500).send('Error');
       }
