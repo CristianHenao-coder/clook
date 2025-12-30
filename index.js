@@ -557,130 +557,131 @@ app.post('/api/links', async (req, res) => {
   }
 });
 
-// ───────────────────────────────────────────────────────────
-// Enrutamiento por dominio propio (sin mostrar rutas)
-// ───────────────────────────────────────────────────────────
-// Cualquier GET a la raíz de un dominio asignado a un link renderiza la vista
-// correcta (searchEngine/instructions) sin cambiar la URL.
-app.get(['/', '/index.html'], async (req, res, next) => {
-  const host = normalizeHost(req.headers.host);
-  
-  if (ADMIN_HOST && host === normalizeHost(ADMIN_HOST)) return next();
+    // ───────────────────────────────────────────────────────────
+    // Enrutamiento por dominio propio (sin mostrar rutas)
+    // ───────────────────────────────────────────────────────────
+    // Cualquier GET a la raíz de un dominio asignado a un link renderiza la vista
+    // correcta (searchEngine/instructions) sin cambiar la URL.
+    // ───────────────────────────────────────────────────────────
+    // Enrutamiento por dominio propio (Lógica de Camuflaje)
+    // ───────────────────────────────────────────────────────────
 
-  const link = await getLinkRowByDomain(host);
-  if (!link) {
-    if (!ADMIN_HOST) return res.redirect(302, '/private-link');
-    return res.status(404).send('Not found');
-  }
+    app.get(['/', '/index.html'], async (req, res, next) => {
+      const host = normalizeHost(req.headers.host);
+      
+      if (ADMIN_HOST && host === normalizeHost(ADMIN_HOST)) return next();
 
-  const id = link.id;
-  const ua = String(req.headers['user-agent'] || '').toLowerCase();
+      const link = await getLinkRowByDomain(host);
+      if (!link) {
+        if (!ADMIN_HOST) return res.redirect(302, '/private-link');
+        return res.status(404).send('Not found');
+      }
 
-  // 1. FILTRADO DE SEGURIDAD (Tus funciones actuales)
-  const score = botScore(req); // Usamos tu lógica de puntos de bot
-  const isSocialApp = ua.includes('tiktok') || ua.includes('musically') || ua.includes('instagram') || ua.includes('fbav');
+      const id = link.id;
+      const ua = String(req.headers['user-agent'] || '').toLowerCase();
 
-  // Si es un bot agresivo según tu score, lo bloqueamos antes de que vea nada
-  if (score >= BOT_BLOCK_THRESHOLD) {
-    return res.status(403).send('Not available');
-  }
+      // 1. FILTRADO DE SEGURIDAD
+      const score = botScore(req); 
+      const isSocialApp = ua.includes('tiktok') || ua.includes('musically') || ua.includes('instagram') || ua.includes('fbav') || ua.includes('fb_iab');
 
-  // 2. LÓGICA ANTI-BAN DE TIKTOK
-  // Si detectamos TikTok/Instagram, mandamos SIEMPRE a instructions.
-  // Esto hace que el bot de TikTok solo vea una guía visual y no tu OnlyFans.
-  if (isSocialApp) {
-    return res.render('instructions', { id });
-  }
+      // Bloqueo inmediato de bots conocidos por IP/Score
+      if (score >= BOT_BLOCK_THRESHOLD) {
+        return res.status(403).send('Not available');
+      }
 
-  // 3. FLUJO PARA USUARIOS FUERA DE LA APP
-  // Si el usuario ya está en Chrome/Safari:
-  if (link.mode === 'instructions') {
-    return res.render('instructions', { id });
-  }
+      // 2. LÓGICA ANTI-BAN (Muro de Instrucciones)
+      // Si están dentro de TikTok/IG, mostramos instrucciones para forzar salida al navegador.
+      if (isSocialApp) {
+        return res.render('instructions', { id });
+      }
 
-  // Mostramos la landing (searchEngine) solo si el score es bajo y no es una app
-  return res.render('searchEngine', { id, model: link });
-});
+      // 3. FLUJO PARA NAVEGADORES EXTERNOS (Chrome/Safari)
+      if (link.mode === 'instructions') {
+        return res.render('instructions', { id });
+      }
 
+      // Si ya están en un navegador real, mostramos la Landing limpia.
+      return res.render('searchEngine', { id, model: link });
+    });
 
-app.get('/api/v1/gate/:id', async (req, res) => {
-  const model = await getLinkRowById(req.params.id);
-  if (!model) return res.status(404).json({ error: 'Not found' });
-  
-  // Enviamos la URL de OnlyFans escondida en Base64
-  const encodedUrl = Buffer.from(model.onlyfans || '').toString('base64');
-  res.json({ data: encodedUrl });
-});
+    // ───────────────────────────────────────────────────────────
+    // API DE SALIDA (Única forma de obtener el link final)
+    // ───────────────────────────────────────────────────────────
+    app.get('/api/v1/gate/:id', async (req, res) => {
+      try {
+        const model = await getLinkRowById(req.params.id);
+        if (!model || !model.onlyfans) return res.status(404).json({ error: 'Not found' });
+        
+        // Ofuscamos el link en Base64 para que no sea rastreable en el tráfico de red plano
+        const encodedUrl = Buffer.from(model.onlyfans).toString('base64');
+        res.json({ data: encodedUrl });
+      } catch (e) {
+        res.status(500).json({ error: 'Internal error' });
+      }
+    });
 
-// Rutas "opacas" dentro del dominio del modelo
-app.get(['/secret', '/secret/'], async (req, res) => {
-  const host = normalizeHost(req.headers.host);
-  if (ADMIN_HOST && host === normalizeHost(ADMIN_HOST)) return res.status(404).send('Not found');
-  const link = await getLinkRowByDomain(host);
-  if (!link) return res.status(404).send('Invalid link');
-  return res.redirect(link.onlyfans || '/');
-});
+    // ───────────────────────────────────────────────────────────
+    // RUTAS DE CARGA (Loading)
+    // ───────────────────────────────────────────────────────────
 
+    // Por dominio propio
+    app.get(['/loading', '/loading/'], async (req, res) => {
+      const host = normalizeHost(req.headers.host);
+      if (ADMIN_HOST && host === normalizeHost(ADMIN_HOST)) return res.status(404).send('Not found');
+      
+      const link = await getLinkRowByDomain(host);
+      if (!link) return res.status(404).send('Invalid link');
+      
+      return res.render('loading', { id: link.id });
+    });
 
-app.get(['/loading', '/loading/'], async (req, res) => {
-  const host = normalizeHost(req.headers.host);
-  if (ADMIN_HOST && host === normalizeHost(ADMIN_HOST)) return res.status(404).send('Not found');
-  
-  const link = await getLinkRowByDomain(host);
-  if (!link) return res.status(404).send('Invalid link');
-  
-  // IMPORTANTE: Aquí pasamos el link.id a la vista
-  return res.render('loading', { id: link.id });
-});
+    // Por ID/Slug
+    app.get('/loading/:id', async (req, res) => {
+      const id = req.params.id;
+      const model = await getLinkRowById(id);
+      if (!model) return res.status(404).send("Invalid link");
+      return res.render('loading', { id });
+    });
 
-// ───────────────────────────────────────────────────────────
-// Compat: rutas clásicas por slug (en BASE_PUBLIC_URL)
-// ───────────────────────────────────────────────────────────
-const RESERVED_PREFIXES = new Set([
-  'clook', 'ping', 'c', 'instructions', 'searchengine', 'loading', 'secret',
-  'favicon.ico', 'robots.txt', 'healthz', 'admin', 'private', 'private-link', 'api', 'challenge'
-]);
-function looksLikeSlug(s) { return /^[-A-Za-z0-9_]{3,}$/.test(s); }
+    // ───────────────────────────────────────────────────────────
+    // ELIMINACIÓN DE RASTROS (Rutas /secret ELIMINADAS)
+    // ───────────────────────────────────────────────────────────
+    /* IMPORTANTE: He eliminado las rutas /secret que hacían res.redirect.
+      Ahora el redireccionamiento ocurre SOLO en el cliente (loading.ejs) 
+      usando la API para evitar que TikTok detecte el salto automático.
+    */
 
-app.get('/instructions/:id', async (req, res) => {
-  const id = req.params.id;
-  return res.render('instructions', { id });
-});
-app.get('/searchEngine/:id', async (req, res) => {
-  const id    = req.params.id;
-  const model = await getLinkRowById(id);
-  if (!model) return res.status(404).send("Invalid link");
-  return res.render('searchEngine', { id, model });
-});
-app.get('/loading/:id', async (req, res) => {
-  const id    = req.params.id;
-  const model = await getLinkRowById(id);
-  if (!model) return res.status(404).send("Invalid link");
-  return res.render('loading', { id });
-});
-app.get('/secret/:id', async (req, res) => {
-  const id    = req.params.id;
-  const model = await getLinkRowById(id);
-  if (!model) return res.status(404).send("Invalid link");
-  return res.redirect(model.onlyfans || '/');
-});
+    // ───────────────────────────────────────────────────────────
+    // Compat: rutas clásicas por slug
+    // ───────────────────────────────────────────────────────────
+    const RESERVED_PREFIXES = new Set([
+      'clook', 'ping', 'c', 'instructions', 'searchengine', 'loading',
+      'favicon.ico', 'robots.txt', 'healthz', 'admin', 'api', 'challenge'
+    ]);
 
-// Captura /:slug → compat
-app.get('/:slug', async (req, res, next) => {
-  try {
-    const slug = (req.params.slug || '').trim();
-    const low  = slug.toLowerCase();
-    if (RESERVED_PREFIXES.has(low)) return next();
-    if (!looksLikeSlug(slug))       return next();
-    return res.redirect(302, `/searchEngine/${slug}`);
-  } catch (e) {
-    console.error('Error en slug router:', e?.message || e);
-    return res.status(500).send('Error interno');
-  }
-});
+    app.get('/instructions/:id', async (req, res) => {
+      return res.render('instructions', { id: req.params.id });
+    });
 
-// Health
-app.get('/ping', (req, res) => res.status(200).send('pong'));
+    app.get('/searchEngine/:id', async (req, res) => {
+      const model = await getLinkRowById(req.params.id);
+      if (!model) return res.status(404).send("Invalid link");
+      return res.render('searchEngine', { id: req.params.id, model });
+    });
+
+    // Captura /:slug → Redirige a la landing limpia
+    app.get('/:slug', async (req, res, next) => {
+      try {
+        const slug = (req.params.slug || '').trim();
+        if (RESERVED_PREFIXES.has(slug.toLowerCase())) return next();
+        if (!looksLikeSlug(slug)) return next();
+        return res.redirect(302, `/searchEngine/${slug}`);
+      } catch (e) {
+        return res.status(500).send('Error');
+      }
+    });
+
+    app.get('/ping', (req, res) => res.status(200).send('pong'));
 
 // ───────────────────────────────────────────────────────────
 app.listen(port, () => {
