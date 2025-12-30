@@ -40,7 +40,7 @@ app.get('/private-link', (_req, res) => {
 // ───────────────────────────────────────────────────────────
 app.set('trust proxy', true);
 
-const REMOVE_WWW          = String(process.env.REMOVE_WWW || 'true') === 'true';
+const REMOVE_WWW          = false
 const CACHE_TTL_MS        = Number(process.env.CACHE_TTL_MS || 300000);
 const DEFAULT_LINK_FIELD  = (process.env.DEFAULT_LINK_FIELD || 'instagram').toLowerCase();
 const BASE_PUBLIC_URL     = (process.env.BASE_PUBLIC_URL || 'http://127.0.0.1:3000').replace(/\/+$/, '');
@@ -53,10 +53,13 @@ const ADMIN_HOST          = (process.env.ADMIN_HOST || '').toLowerCase(); // ej:
 const BUCKET         = 'public-fotos';
 const ALLOWED_FIELDS = new Set(['instagram', 'onlyfans', 'tiktok']);
 
+
 function normalizeHost(rawHostHeader = '') {
-  const host = String(rawHostHeader || '').toLowerCase().split(':')[0].trim();
+  let host = String(rawHostHeader || '').toLowerCase().split(':')[0].trim();
   if (!host) return '';
-  if (REMOVE_WWW && host.startsWith('www.')) return host.slice(4);
+  // Quitamos el www solo para la búsqueda en la base de datos, 
+  // pero NO para hacer un redirect 301.
+  if (host.startsWith('www.')) host = host.slice(4);
   return host;
 }
 
