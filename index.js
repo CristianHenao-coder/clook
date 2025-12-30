@@ -60,17 +60,17 @@ function normalizeHost(rawHostHeader = '') {
   return host;
 }
 
-// Forzar HTTPS en producción (Render/Reverse proxy)
-app.use((req, res, next) => {
-  if (FORCE_HTTPS && process.env.NODE_ENV === 'production') {
-    const xfProto = req.headers['x-forwarded-proto'];
-    if (xfProto && xfProto !== 'https') {
-      const host = req.headers.host;
-      return res.redirect(301, `https://${host}${req.originalUrl}`);
-    }
-  }
-  next();
-});
+// // Forzar HTTPS en producción (Render/Reverse proxy)
+// app.use((req, res, next) => {
+//   if (FORCE_HTTPS && process.env.NODE_ENV === 'production') {
+//     const xfProto = req.headers['x-forwarded-proto'];
+//     if (xfProto && xfProto !== 'https') {
+//       const host = req.headers.host;
+//       return res.redirect(301, `https://${host}${req.originalUrl}`);
+//     }
+//   }
+//   next();
+// });
 
 // ───────────────────────────────────────────────────────────
 // Utilidades
