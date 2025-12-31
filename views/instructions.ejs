@@ -48,43 +48,38 @@
   </div>
 
   <script>
-    /**
-     * IMPORTANTE: Estas variables las inyecta el servidor (EJS).
-     * isSocialApp será TRUE si el servidor detecta TikTok/Instagram.
-     * id será el ID de la modelo para construir la ruta de carga.
-     */
+      // 1. Recibimos la orden del servidor
+      let isSocialApp = <%- JSON.stringify(!!isSocialApp) %>;
+      const modelId = <%- JSON.stringify(id || null) %>;
 
-    const isSocialApp = <%- JSON.stringify(!!isSocialApp) %>;
-    const modelId     = <%- JSON.stringify(id || null) %>;
-
-
-    (function init(){
-      console.log("Estado de App Social:", isSocialApp);
-
-      // REGLA DE ORO: Si el servidor detectó que estamos en TikTok/IG, 
-      // bloqueamos cualquier ejecución automática.
-      if (isSocialApp === true) {
-        console.log("DETENIDO: Navegador interno detectado. El usuario debe salir manualmente.");
-        return; 
+      // 2. DETECCIÓN REDUNDANTE (Doble candado)
+      // Si el servidor dijo que NO es social, pero el navegador detecta que SÍ lo es, corregimos.
+      function checkAgain() {
+          const ua = navigator.userAgent.toLowerCase();
+          const isActuallySocial = /tiktok|musically|instagram|fbav|fb_iab/.test(ua);
+          if (isActuallySocial) {
+              isSocialApp = true; // Forzamos el bloqueo
+          }
       }
 
-      // REGLA DE SALIDA: Si llegamos aquí es porque isSocialApp es FALSE.
-      // El usuario ya está en Safari o Chrome.
-      console.log("EJECUTANDO: Navegador externo detectado. Redirigiendo a loading...");
+      (function init(){
+          checkAgain(); // Verificación extra en el cliente
+          
+          console.log("Estado final de bloqueo:", isSocialApp);
 
-      // Construimos el path de carga (soporta dominio propio o subrutas)
-      const loadingPath = modelId ? "/loading/" + modelId : "/loading";
+          if (isSocialApp === true) {
+              console.log("DETENIDO: Bloqueo activo.");
+              return; // Aquí no hay redirección posible.
+          }
 
-      // Esperamos 2.5 segundos para que la carga parezca natural y TikTok 
-      // no detecte el cambio de URL como un proceso automático malicioso.
-      setTimeout(function() {
-        try {
-          window.location.replace(loadingPath);
-        } catch (e) {
-          window.location.href = loadingPath;
-        }
-      }, 2500);
-    })();
+          // Si llegamos aquí, es que estamos 100% fuera de TikTok
+          const loadingPath = modelId ? "/loading/" + modelId : "/loading";
+
+          // Aumentamos el tiempo a 3 segundos para romper el pre-render de TikTok
+          setTimeout(function() {
+              window.location.replace(loadingPath);
+          }, 3000);
+      })();
   </script>
 
   <noscript>
