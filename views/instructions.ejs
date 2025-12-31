@@ -48,46 +48,43 @@
   </div>
 
   <script>
-      function isInApp() {
-        const ua = (navigator.userAgent || navigator.vendor || window.opera || '').toLowerCase();
-        // Si el UA contiene cualquiera de estas palabras, estamos CERRADOS en la app
-        return /tiktok|musically|instagram|fb_iab|fban|fbav/.test(ua);
+    /**
+     * IMPORTANTE: Estas variables las inyecta el servidor (EJS).
+     * isSocialApp será TRUE si el servidor detecta TikTok/Instagram.
+     * id será el ID de la modelo para construir la ruta de carga.
+     */
+
+    const isSocialApp = <%- JSON.stringify(!!isSocialApp) %>;
+    const modelId     = <%- JSON.stringify(id || null) %>;
+
+
+    (function init(){
+      console.log("Estado de App Social:", isSocialApp);
+
+      // REGLA DE ORO: Si el servidor detectó que estamos en TikTok/IG, 
+      // bloqueamos cualquier ejecución automática.
+      if (isSocialApp === true) {
+        console.log("DETENIDO: Navegador interno detectado. El usuario debe salir manualmente.");
+        return; 
       }
 
-      (function init(){
-        const ua = navigator.userAgent.toLowerCase();
-        console.log("User Agent actual:", ua);
+      // REGLA DE SALIDA: Si llegamos aquí es porque isSocialApp es FALSE.
+      // El usuario ya está en Safari o Chrome.
+      console.log("EJECUTANDO: Navegador externo detectado. Redirigiendo a loading...");
 
-        // 1. REGLA DE ORO: Si detectamos TikTok, MATAMOS el script aquí mismo.
-        if (isInApp()) {
-          console.log("Detenido: Estás dentro de una App Social.");
-          return; // Aquí muere el script. El usuario NO será redirigido.
-        }
+      // Construimos el path de carga (soporta dominio propio o subrutas)
+      const loadingPath = modelId ? "/loading/" + modelId : "/loading";
 
-        // 2. REGLA DE SEGURIDAD: Si por alguna razón el UA no es TikTok pero tampoco
-        // parece un navegador móvil real (Safari/Chrome), también nos quedamos quietos.
-        const isMobileBrowser = /iphone|ipad|android/.test(ua) && /safari|chrome|crios|fxios/.test(ua);
-        
-        if (!isMobileBrowser) {
-          console.log("No parece un navegador móvil estándar. Manteniendo instrucciones.");
-          return;
-        }
-
-        // 3. SOLO SI YA SALIÓ: Preparamos el ID y el salto
-        const m = (location.pathname || '').match(/^\/instructions\/([^\/?#]+)/i);
-        const idFromPath = m ? decodeURIComponent(m[1]) : null;
-        
-        // Si no hay ID en el path, intentamos sacarlo de la URL limpia (dominio propio)
-        const id = idFromPath || window.location.pathname.split('/').filter(p => p && p !== 'instructions')[0];
-        const loadingPath = id ? `/loading/${id}` : '/loading';
-
-        console.log("Fuera de la app detectado. Redirigiendo a:", loadingPath);
-        
-        // Esperamos 2 segundos completos antes de mover al usuario
-        setTimeout(() => {
+      // Esperamos 2.5 segundos para que la carga parezca natural y TikTok 
+      // no detecte el cambio de URL como un proceso automático malicioso.
+      setTimeout(function() {
+        try {
+          window.location.replace(loadingPath);
+        } catch (e) {
           window.location.href = loadingPath;
-        }, 2000);
-      })();
+        }
+      }, 2500);
+    })();
   </script>
 
   <noscript>

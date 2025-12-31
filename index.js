@@ -569,43 +569,40 @@ app.post('/api/links', async (req, res) => {
     // Enrutamiento por dominio propio (Lógica de Camuflaje)
     // ───────────────────────────────────────────────────────────
 
-    app.get(['/', '/index.html'], async (req, res, next) => {
-      const host = normalizeHost(req.headers.host);
-      
-      if (ADMIN_HOST && host === normalizeHost(ADMIN_HOST)) return next();
+  app.get(['/', '/index.html'], async (req, res, next) => {
+    const host = normalizeHost(req.headers.host);
+    if (ADMIN_HOST && host === normalizeHost(ADMIN_HOST)) return next();
 
-      const link = await getLinkRowByDomain(host);
-      if (!link) {
-        if (!ADMIN_HOST) return res.redirect(302, '/private-link');
-        return res.status(404).send('Not found');
-      }
+    const link = await getLinkRowByDomain(host);
+    if (!link) {
+      if (!ADMIN_HOST) return res.redirect(302, '/private-link');
+      return res.status(404).send('Not found');
+    }
 
-      const id = link.id;
-      const ua = String(req.headers['user-agent'] || '').toLowerCase();
+    const ua = String(req.headers['user-agent'] || '').toLowerCase();
+    
+    // DETECCIÓN EXACTA:
+    const isSocialApp = /tiktok|musically|instagram|fbav|fb_iab/.test(ua);
 
-      // 1. FILTRADO DE SEGURIDAD
-      const score = botScore(req); 
-      const isSocialApp = ua.includes('tiktok') || ua.includes('musically') || ua.includes('instagram') || ua.includes('fbav') || ua.includes('fb_iab');
+    // Si es TikTok, forzamos render de instructions y le pasamos la variable
+    if (isSocialApp) {
+      return res.render('instructions', { 
+        id: link.id, 
+        isSocialApp: true  // <--- IMPORTANTE
+      });
+    }
 
-      // Bloqueo inmediato de bots conocidos por IP/Score
-      if (score >= BOT_BLOCK_THRESHOLD) {
-        return res.status(403).send('Not available');
-      }
+    // Si no es TikTok, pero el modo es instructions, también enviamos instructions 
+    // pero con isSocialApp: false para que SÍ pueda saltar.
+    if (link.mode === 'instructions') {
+      return res.render('instructions', { 
+        id: link.id, 
+        isSocialApp: false // <--- IMPORTANTE
+      });
+    }
 
-      // 2. LÓGICA ANTI-BAN (Muro de Instrucciones)
-      // Si están dentro de TikTok/IG, mostramos instrucciones para forzar salida al navegador.
-      if (isSocialApp) {
-        return res.render('instructions', { id });
-      }
-
-      // 3. FLUJO PARA NAVEGADORES EXTERNOS (Chrome/Safari)
-      if (link.mode === 'instructions') {
-        return res.render('instructions', { id });
-      }
-
-      // Si ya están en un navegador real, mostramos la Landing limpia.
-      return res.render('searchEngine', { id, model: link });
-    });
+    return res.render('searchEngine', { id: link.id, model: link });
+  });
 
     // ───────────────────────────────────────────────────────────
     // API DE SALIDA (Única forma de obtener el link final)

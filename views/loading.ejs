@@ -62,10 +62,12 @@
     }
 
     // 2. Detección de Bot/TikTok
+    // MODIFICADO: Quitamos tiktok e instagram de aquí 
+    // porque si llegaron aquí es que ya salieron al navegador.
     function isBotOrInApp() {
       const ua = navigator.userAgent.toLowerCase();
-      // Si detecta tiktok, instagram o webview, lo bloqueamos aquí
-      return /bot|crawl|spider|webview|tiktok|instagram|fb_iab/.test(ua);
+      // Solo bloqueamos bots reales o crawlers de servidores
+      return /bot|crawl|spider|slurp|facebookexternalhit|googlebot/.test(ua);
     }
 
     // 3. Lógica de Redirección Segura
