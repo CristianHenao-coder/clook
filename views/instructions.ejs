@@ -51,25 +51,35 @@
   </div>
 
   <script>
-    // Usamos JSON.stringify para evitar errores de sintaxis en el editor
-    const isSocialAppServer = <%- JSON.stringify(!!isSocialApp) %>;
+    // 1. Recibimos los datos del servidor con un fallback de seguridad
+    // Usamos JSON.stringify para evitar que el editor marque error rojo
+    const isSocialServer = <%- JSON.stringify(!!isSocialApp) %>;
     const modelId = <%- JSON.stringify(id || null) %>;
 
-    (function init(){
+    (function init() {
+      // 2. Detección de Cliente Reforzada (Especial para iPhone)
       const ua = navigator.userAgent.toLowerCase();
-      // Verificación local extra por si el servidor falló
-      const isSocialAppClient = /tiktok|musically|instagram|fbav|fb_iab/.test(ua);
+      const vendor = navigator.vendor ? navigator.vendor.toLowerCase() : '';
       
-      // Si cualquiera de los dos (Servidor o Cliente) dice que es App, BLOQUEAMOS.
-      if (isSocialAppServer || isSocialAppClient) {
-        console.log("BLOQUEADO: Estás dentro de la App. No habrá redirección.");
-        return; 
+      // Si es TikTok, Instagram, FB, o si es un WebView de iPhone (fban/fbav/fb_iab)
+      const isSocialClient = /tiktok|musically|instagram|fb_iab|fban|fbav|threads|messenger/.test(ua) || 
+                            (vendor.includes('apple') && !ua.includes('safari'));
+
+      console.log("Detección Servidor:", isSocialServer);
+      console.log("Detección Cliente:", isSocialClient);
+
+      // 3. REGLA DE ORO: Si cualquiera es positivo, matamos el proceso.
+      if (isSocialServer || isSocialClient) {
+        console.log("BLOQUEO TOTAL: Estás en una red social. Instrucciones fijas.");
+        return; // El script termina aquí. No hay setTimeout, no hay salto.
       }
 
-      // SOLO si ambos dicen que estamos fuera, permitimos el salto
+      // 4. SOLO PARA NAVEGADORES EXTERNOS (Safari/Chrome)
+      // Usamos replace() en lugar de href para que el botón "Atrás" no cause bucles
       const loadingPath = modelId ? "/loading/" + modelId : "/loading";
       
-      // Aumentamos a 4 segundos para estar seguros de que el usuario leyó
+      console.log("Navegador externo detectado. Saltando a:", loadingPath);
+      
       setTimeout(function() {
         window.location.replace(loadingPath);
       }, 4000);
