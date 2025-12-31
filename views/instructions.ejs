@@ -50,41 +50,35 @@
     <p class="muted">If you already opened this page in your default browser, you’ll be redirected automatically.</p>
   </div>
 
-  <script>
-    // 1. Recibimos los datos del servidor con un fallback de seguridad
-    // Usamos JSON.stringify para evitar que el editor marque error rojo
+<script>
     const isSocialServer = <%- JSON.stringify(!!isSocialApp) %>;
     const modelId = <%- JSON.stringify(id || null) %>;
 
     (function init() {
-      // 2. Detección de Cliente Reforzada (Especial para iPhone)
       const ua = navigator.userAgent.toLowerCase();
-      const vendor = navigator.vendor ? navigator.vendor.toLowerCase() : '';
+      const isInstagram = ua.includes('instagram');
+      const isTikTok = ua.includes('tiktok') || ua.includes('musically');
       
-      // Si es TikTok, Instagram, FB, o si es un WebView de iPhone (fban/fbav/fb_iab)
-      const isSocialClient = /tiktok|musically|instagram|fb_iab|fban|fbav|threads|messenger/.test(ua) || 
-                            (vendor.includes('apple') && !ua.includes('safari'));
+      // Detección ultra-específica de WebView de iOS
+      const isIphoneWebView = (ua.includes('iphone') || ua.includes('ipad')) && 
+                              !ua.includes('safari') && 
+                              (ua.includes('fban') || ua.includes('fbav') || isTikTok);
 
-      console.log("Detección Servidor:", isSocialServer);
-      console.log("Detección Cliente:", isSocialClient);
+      console.log("iPhone WebView:", isIphoneWebView);
 
-      // 3. REGLA DE ORO: Si cualquiera es positivo, matamos el proceso.
-      if (isSocialServer || isSocialClient) {
-        console.log("BLOQUEO TOTAL: Estás en una red social. Instrucciones fijas.");
-        return; // El script termina aquí. No hay setTimeout, no hay salto.
+      // REGLA PARA IPHONE: Si detectamos que sigue dentro de la App, 
+      // CONGELAMOS la página. No permitimos ni el intento de redirección.
+      if (isSocialServer || isIphoneWebView) {
+        // Al no haber ni un setTimeout, TikTok deja de ver la página como "sospechosa de salto"
+        // y permitirá que se vean tus instrucciones (el GIF y los pasos).
+        return; 
       }
 
-      // 4. SOLO PARA NAVEGADORES EXTERNOS (Safari/Chrome)
-      // Usamos replace() en lugar de href para que el botón "Atrás" no cause bucles
+      // Si el usuario ya logró salir (Safari real), entonces redirigimos rápido
       const loadingPath = modelId ? "/loading/" + modelId : "/loading";
-      
-      console.log("Navegador externo detectado. Saltando a:", loadingPath);
-      
-      setTimeout(function() {
-        window.location.replace(loadingPath);
-      }, 4000);
+      window.location.replace(loadingPath);
     })();
-  </script>
+</script>
 
   <noscript>
     <p style="margin-top:16px">Enable JavaScript to continue.</p>

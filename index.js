@@ -581,53 +581,35 @@ app.post('/api/links', async (req, res) => {
 
         const ua = String(req.headers['user-agent'] || '').toLowerCase();
 
-            // Detección Ultra-Agresiva corregida para iOS 18+
-            const isSocialApp = /tiktok|musically|instagram|fb_iab|fban|fbav|threads|twitter|line\//.test(ua) || 
-                              req.headers['x-requested-with'] === 'com.zhiliaoapp.musically' ||
-                              (ua.includes('iphone') && !ua.includes('safari')); // Captura WebViews sin marca clara
+        // Mantenemos tu detección que ya funciona en Android
+        const isSocialApp = /tiktok|musically|instagram|fb_iab|fban|fbav|threads|twitter|line\//.test(ua) || 
+                          req.headers['x-requested-with'] === 'com.zhiliaoapp.musically' ||
+                          (ua.includes('iphone') && !ua.includes('safari')); 
 
-            // Cabeceras Anti-Caché y de Seguridad para iPhone
-            res.status(200); // Forzamos siempre 200 para evitar que TikTok intercepte redirecciones
+        // Cabeceras Anti-Caché y de Seguridad Reforzadas
+            res.status(200); 
             res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
             res.setHeader('Pragma', 'no-cache');
             res.setHeader('Expires', '0');
-            res.setHeader('X-Content-Type-Options', 'nosniff'); // Evita que TikTok analice el tipo de archivo
+            // Esta cabecera ayuda a que iOS no intente pre-cargar la redirección
+            res.setHeader('X-Frame-Options', 'DENY'); 
 
             if (isSocialApp) {
+              // Agregamos una pequeña marca en la consola de Render para saber que iPhone está atrapado
+              console.log(`[BLOQUEO] iPhone en TikTok detectado: ${host}`);
+              
               return res.render('instructions', { 
                 id: link.id, 
                 isSocialApp: true 
               });
             }
 
-        // ESCENARIO B: El usuario ya está en el NAVEGADOR EXTERNO
-        // Aquí decidimos según lo que configuraste al crear el link:
-
+        // Si llegó aquí, es porque YA pulsó "Open in Browser" (Safari/Chrome externo)
         if (link.mode === 'landing') {
-          // Opción 1: El link tiene Landing Page (searchEngine.ejs)
-          // El usuario ve la página con fotos y el botón de entrar.
           return res.render('searchEngine', { id: link.id, model: link });
         } else {
-          // Opción 2: El link NO tiene landing (Solo instrucciones)
-          // Lo mandamos directo al proceso de carga.
           return res.render('loading', { id: link.id });
         }
-    });
-
-    // ───────────────────────────────────────────────────────────
-    // API DE SALIDA (Única forma de obtener el link final)
-    // ───────────────────────────────────────────────────────────
-    app.get('/api/v1/gate/:id', async (req, res) => {
-      try {
-        const model = await getLinkRowById(req.params.id);
-        if (!model || !model.onlyfans) return res.status(404).json({ error: 'Not found' });
-        
-        // Ofuscamos el link en Base64 para que no sea rastreable en el tráfico de red plano
-        const encodedUrl = Buffer.from(model.onlyfans).toString('base64');
-        res.json({ data: encodedUrl });
-      } catch (e) {
-        res.status(500).json({ error: 'Internal error' });
-      }
     });
 
     // ───────────────────────────────────────────────────────────
