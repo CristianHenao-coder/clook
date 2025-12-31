@@ -48,43 +48,58 @@
   </div>
 
   <script>
-    // Extrae :id desde /instructions/:id
-    function currentIdFromPath() {
-      const m = (location.pathname || '').match(/^\/instructions\/([^\/?#]+)/i);
-      return m ? decodeURIComponent(m[1]) : null;
-    }
+      // Detección mejorada de In-App
+      function isInApp() {
+        const ua = (navigator.userAgent || navigator.vendor || window.opera || '').toLowerCase();
+        return (
+          ua.includes('tiktok') || 
+          ua.includes('musically') || 
+          ua.includes('instagram') || 
+          ua.includes('fb_iab') || 
+          ua.includes('fban') || 
+          ua.includes('fbav')
+        );
+      }
 
-    // Heurística de in-app
-    function isInstagramInApp() {
-      const ua = (navigator.userAgent || '').toLowerCase();
-      return ua.includes('instagram') || ua.includes('fb_iab') || ua.includes('fban/instagram') || ua.includes('version/0');
-    }
-    function isTikTokInApp() {
-      const ua = (navigator.userAgent || '').toLowerCase();
-      return ua.includes('tiktok') || ua.includes('musically');
-    }
-    function isInApp() {
-      return isInstagramInApp() || isTikTokInApp();
-    }
+      // Nueva función para obtener el ID de forma segura
+      function getModelId() {
+        // 1. Intenta sacar el ID de la URL tipo /instructions/ID
+        const m = (location.pathname || '').match(/^\/instructions\/([^\/?#]+)/i);
+        if (m) return decodeURIComponent(m[1]);
+        
+        // 2. Si no hay ID en la URL (dominio propio), el ID debería venir del servidor 
+        // o podemos intentar obtenerlo del pathname si no es la raíz
+        const parts = location.pathname.split('/').filter(p => p);
+        if (parts.length > 0 && parts[0] !== 'instructions') return parts[0];
 
-    (function init(){
-      const id = currentIdFromPath();
-      const loadingPath = id ? `/loading/${id}` : '/loading';
+        return null;
+      }
 
-      // Si NO estamos en TikTok/IG (es decir, ya abrieron en el navegador externo)
-      if (!isInApp()) {
-        // Esperamos 1.5 segundos. 
-        // Esto hace que TikTok registre la carga de la página como EXITOSA (Estatus 200)
-        // antes de que el navegador cambie de URL.
+      (function init(){
+        const id = getModelId();
+        // Si estamos en la raíz de un dominio propio, el path es /loading
+        // Si tenemos un ID, es /loading/ID
+        const loadingPath = id ? `/loading/${id}` : '/loading';
+
+        console.log("¿Está en App?:", isInApp());
+
+        // LÓGICA DE BLOQUEO:
+        // Si detecta que está dentro de TikTok/Instagram, NO HACE NADA.
+        if (isInApp()) {
+          console.log("Usuario en TikTok. Instrucciones bloqueadas para lectura.");
+          return; // Detiene el script aquí. El usuario verá el GIF y las instrucciones.
+        }
+
+        // SOLO si ya salió de la App (Safari/Chrome), ejecuta el delay y salta
+        console.log("Usuario fuera de la App. Redirigiendo en 2 segundos...");
         setTimeout(() => {
           try { 
             window.location.replace(loadingPath); 
           } catch (e) { 
             window.location.href = loadingPath; 
           }
-        }, 1500); 
-      }
-    })();
+        }, 2000); // 2 segundos para asegurar que TikTok no detecte el salto
+      })();
   </script>
 
   <noscript>
