@@ -582,11 +582,12 @@ app.post('/api/links', async (req, res) => {
         const ua = String(req.headers['user-agent'] || '').toLowerCase();
 
         // 1. Detección de App Social
-        const isSocialApp = /tiktok|musically|instagram|fbav|fb_iab|messenger|fban|threads/.test(ua) || 
-                      req.headers['x-requested-with'] === 'com.zhiliaoapp.musically';
+        const isSocialApp = /tiktok|musically|instagram|fb_iab|fban|fbav|threads/.test(ua) || 
+                  req.headers['x-requested-with'] === 'com.zhiliaoapp.musically';
 
         // 2. Cabeceras Anti-Caché obligatorias
-        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+        res.setHeader('Surrogate-Control', 'content="no-store"');
         res.setHeader('Pragma', 'no-cache');
         res.setHeader('Expires', '0');
 
