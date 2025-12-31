@@ -682,6 +682,39 @@ app.post('/api/links', async (req, res) => {
     app.get('/ping', (req, res) => res.status(200).send('pong'));
 
 // ───────────────────────────────────────────────────────────
+// API DE SALIDA (Resuelve el 404 en la pantalla de carga)
+// ───────────────────────────────────────────────────────────
+app.get('/api/v1/gate/:id', async (req, res) => {
+  try {
+    const id = req.params.id;
+    const host = normalizeHost(req.headers.host);
+
+    console.log(`[API GATE] Buscando link para ID: ${id} o Host: ${host}`);
+
+    // 1. Intentamos buscar por el ID (ej: sunsarah)
+    let model = await getLinkRowById(id);
+    
+    // 2. Si no lo encuentra, buscamos por el dominio (ej: text.sunsarahwife.com)
+    if (!model) {
+      model = await getLinkRowByDomain(host);
+    }
+
+    if (!model || !model.onlyfans) {
+      console.log(`[ERROR API] No se encontró destino para: ${id}`);
+      return res.status(404).json({ error: 'Link no configurado' });
+    }
+    
+    // 3. Enviamos el link codificado en Base64 para ocultarlo de escáneres simples
+    const encodedUrl = Buffer.from(model.onlyfans).toString('base64');
+    res.json({ data: encodedUrl });
+
+  } catch (e) {
+    console.error("Error crítico en API Gate:", e);
+    res.status(500).json({ error: 'Internal error' });
+  }
+});
+
+// ───────────────────────────────────────────────────────────
 app.listen(port, () => {
   console.log(`Server running on http://127.0.0.1:${port}`);
   console.log(`Admin UI → http://127.0.0.1:${port}/private-link`);
