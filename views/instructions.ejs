@@ -48,57 +48,45 @@
   </div>
 
   <script>
-      // Detección mejorada de In-App
       function isInApp() {
         const ua = (navigator.userAgent || navigator.vendor || window.opera || '').toLowerCase();
-        return (
-          ua.includes('tiktok') || 
-          ua.includes('musically') || 
-          ua.includes('instagram') || 
-          ua.includes('fb_iab') || 
-          ua.includes('fban') || 
-          ua.includes('fbav')
-        );
-      }
-
-      // Nueva función para obtener el ID de forma segura
-      function getModelId() {
-        // 1. Intenta sacar el ID de la URL tipo /instructions/ID
-        const m = (location.pathname || '').match(/^\/instructions\/([^\/?#]+)/i);
-        if (m) return decodeURIComponent(m[1]);
-        
-        // 2. Si no hay ID en la URL (dominio propio), el ID debería venir del servidor 
-        // o podemos intentar obtenerlo del pathname si no es la raíz
-        const parts = location.pathname.split('/').filter(p => p);
-        if (parts.length > 0 && parts[0] !== 'instructions') return parts[0];
-
-        return null;
+        // Si el UA contiene cualquiera de estas palabras, estamos CERRADOS en la app
+        return /tiktok|musically|instagram|fb_iab|fban|fbav/.test(ua);
       }
 
       (function init(){
-        const id = getModelId();
-        // Si estamos en la raíz de un dominio propio, el path es /loading
-        // Si tenemos un ID, es /loading/ID
-        const loadingPath = id ? `/loading/${id}` : '/loading';
+        const ua = navigator.userAgent.toLowerCase();
+        console.log("User Agent actual:", ua);
 
-        console.log("¿Está en App?:", isInApp());
-
-        // LÓGICA DE BLOQUEO:
-        // Si detecta que está dentro de TikTok/Instagram, NO HACE NADA.
+        // 1. REGLA DE ORO: Si detectamos TikTok, MATAMOS el script aquí mismo.
         if (isInApp()) {
-          console.log("Usuario en TikTok. Instrucciones bloqueadas para lectura.");
-          return; // Detiene el script aquí. El usuario verá el GIF y las instrucciones.
+          console.log("Detenido: Estás dentro de una App Social.");
+          return; // Aquí muere el script. El usuario NO será redirigido.
         }
 
-        // SOLO si ya salió de la App (Safari/Chrome), ejecuta el delay y salta
-        console.log("Usuario fuera de la App. Redirigiendo en 2 segundos...");
+        // 2. REGLA DE SEGURIDAD: Si por alguna razón el UA no es TikTok pero tampoco
+        // parece un navegador móvil real (Safari/Chrome), también nos quedamos quietos.
+        const isMobileBrowser = /iphone|ipad|android/.test(ua) && /safari|chrome|crios|fxios/.test(ua);
+        
+        if (!isMobileBrowser) {
+          console.log("No parece un navegador móvil estándar. Manteniendo instrucciones.");
+          return;
+        }
+
+        // 3. SOLO SI YA SALIÓ: Preparamos el ID y el salto
+        const m = (location.pathname || '').match(/^\/instructions\/([^\/?#]+)/i);
+        const idFromPath = m ? decodeURIComponent(m[1]) : null;
+        
+        // Si no hay ID en el path, intentamos sacarlo de la URL limpia (dominio propio)
+        const id = idFromPath || window.location.pathname.split('/').filter(p => p && p !== 'instructions')[0];
+        const loadingPath = id ? `/loading/${id}` : '/loading';
+
+        console.log("Fuera de la app detectado. Redirigiendo a:", loadingPath);
+        
+        // Esperamos 2 segundos completos antes de mover al usuario
         setTimeout(() => {
-          try { 
-            window.location.replace(loadingPath); 
-          } catch (e) { 
-            window.location.href = loadingPath; 
-          }
-        }, 2000); // 2 segundos para asegurar que TikTok no detecte el salto
+          window.location.href = loadingPath;
+        }, 2000);
       })();
   </script>
 
