@@ -579,11 +579,13 @@ app.post('/api/links', async (req, res) => {
           return res.status(404).send('Not found');
         }
 
+        // index.js
         const ua = String(req.headers['user-agent'] || '').toLowerCase();
 
-        // 1. Detección de App Social
-        const isSocialApp = /tiktok|musically|instagram|fb_iab|fban|fbav|threads/.test(ua) || 
-                  req.headers['x-requested-with'] === 'com.zhiliaoapp.musically';
+        // Detección Ultra-Agresiva para iOS y Android
+        const isSocialApp = /tiktok|musically|instagram|fb_iab|fban|fbav|threads|twitter|line\//.test(ua) || 
+                          req.headers['x-requested-with'] === 'com.zhiliaoapp.musically' ||
+                          req.headers['x-requested-with'] === 'com.apple.uikit.viewservice'; // Detecta WebViews de iOS
 
         // 2. Cabeceras Anti-Caché obligatorias
         res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
