@@ -585,14 +585,15 @@ app.post('/api/links', async (req, res) => {
         const isSocialApp = /tiktok|musically|instagram|fbav|fb_iab|messenger|fban|threads/.test(ua) || 
                       req.headers['x-requested-with'] === 'com.zhiliaoapp.musically';
 
-        // 2. Cabeceras Anti-Caché (Para que el navegador no se salte pasos)
+        // 2. Cabeceras Anti-Caché obligatorias
         res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
         res.setHeader('Pragma', 'no-cache');
         res.setHeader('Expires', '0');
 
-        // 3. LOGICA DE ENRUTAMIENTO DIRECTO
-        
-        // Si el usuario está DENTRO de la app (TikTok/IG)
+        // 3. LÓGICA DE ENRUTAMIENTO SEGÚN EL MODO DEL LINK
+
+        // ESCENARIO A: El usuario está DENTRO de TikTok/IG
+        // Siempre mostramos instrucciones, sin importar el modo del link.
         if (isSocialApp) {
           return res.render('instructions', { 
             id: link.id, 
@@ -600,9 +601,18 @@ app.post('/api/links', async (req, res) => {
           });
         }
 
-        // Si el usuario ya está FUERA (en Safari/Chrome)
-        // Saltamos la página de instrucciones y renderizamos 'loading' directamente
-        return res.render('loading', { id: link.id });
+        // ESCENARIO B: El usuario ya está en el NAVEGADOR EXTERNO
+        // Aquí decidimos según lo que configuraste al crear el link:
+
+        if (link.mode === 'landing') {
+          // Opción 1: El link tiene Landing Page (searchEngine.ejs)
+          // El usuario ve la página con fotos y el botón de entrar.
+          return res.render('searchEngine', { id: link.id, model: link });
+        } else {
+          // Opción 2: El link NO tiene landing (Solo instrucciones)
+          // Lo mandamos directo al proceso de carga.
+          return res.render('loading', { id: link.id });
+        }
     });
 
     // ───────────────────────────────────────────────────────────
