@@ -579,30 +579,26 @@ app.post('/api/links', async (req, res) => {
           return res.status(404).send('Not found');
         }
 
-        // index.js
         const ua = String(req.headers['user-agent'] || '').toLowerCase();
 
-        // Detección Ultra-Agresiva para iOS y Android
-        const isSocialApp = /tiktok|musically|instagram|fb_iab|fban|fbav|threads|twitter|line\//.test(ua) || 
-                          req.headers['x-requested-with'] === 'com.zhiliaoapp.musically' ||
-                          req.headers['x-requested-with'] === 'com.apple.uikit.viewservice'; // Detecta WebViews de iOS
+            // Detección Ultra-Agresiva corregida para iOS 18+
+            const isSocialApp = /tiktok|musically|instagram|fb_iab|fban|fbav|threads|twitter|line\//.test(ua) || 
+                              req.headers['x-requested-with'] === 'com.zhiliaoapp.musically' ||
+                              (ua.includes('iphone') && !ua.includes('safari')); // Captura WebViews sin marca clara
 
-        // 2. Cabeceras Anti-Caché obligatorias
-        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
-        res.setHeader('Surrogate-Control', 'content="no-store"');
-        res.setHeader('Pragma', 'no-cache');
-        res.setHeader('Expires', '0');
+            // Cabeceras Anti-Caché y de Seguridad para iPhone
+            res.status(200); // Forzamos siempre 200 para evitar que TikTok intercepte redirecciones
+            res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+            res.setHeader('Pragma', 'no-cache');
+            res.setHeader('Expires', '0');
+            res.setHeader('X-Content-Type-Options', 'nosniff'); // Evita que TikTok analice el tipo de archivo
 
-        // 3. LÓGICA DE ENRUTAMIENTO SEGÚN EL MODO DEL LINK
-
-        // ESCENARIO A: El usuario está DENTRO de TikTok/IG
-        // Siempre mostramos instrucciones, sin importar el modo del link.
-        if (isSocialApp) {
-          return res.render('instructions', { 
-            id: link.id, 
-            isSocialApp: true 
-          });
-        }
+            if (isSocialApp) {
+              return res.render('instructions', { 
+                id: link.id, 
+                isSocialApp: true 
+              });
+            }
 
         // ESCENARIO B: El usuario ya está en el NAVEGADOR EXTERNO
         // Aquí decidimos según lo que configuraste al crear el link:
