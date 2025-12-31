@@ -579,10 +579,18 @@ app.post('/api/links', async (req, res) => {
       return res.status(404).send('Not found');
     }
 
+    // En index.js
     const ua = String(req.headers['user-agent'] || '').toLowerCase();
-    
-    // DETECCIÓN EXACTA:
-    const isSocialApp = /tiktok|musically|instagram|fbav|fb_iab/.test(ua);
+
+    // Lista expandida para no fallar nunca
+    const isSocialApp = /tiktok|musically|instagram|fbav|fb_iab|messenger|fban|threads/.test(ua) || 
+                   req.headers['x-requested-with'] === 'com.zhiliaoapp.musically'; // Identificador directo de la App
+
+      // --- AQUÍ ES DONDE DEBEN IR LAS LÍNEAS QUE CAUSARON EL ERROR ---
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    // -------------------------------------------------------------
 
     // Si es TikTok, forzamos render de instructions y le pasamos la variable
     if (isSocialApp) {
