@@ -569,48 +569,41 @@ app.post('/api/links', async (req, res) => {
     // Enrutamiento por dominio propio (Lógica de Camuflaje)
     // ───────────────────────────────────────────────────────────
 
-  app.get(['/', '/index.html'], async (req, res, next) => {
-    const host = normalizeHost(req.headers.host);
-    if (ADMIN_HOST && host === normalizeHost(ADMIN_HOST)) return next();
+    app.get(['/', '/index.html'], async (req, res, next) => {
+        const host = normalizeHost(req.headers.host);
+        if (ADMIN_HOST && host === normalizeHost(ADMIN_HOST)) return next();
 
-    const link = await getLinkRowByDomain(host);
-    if (!link) {
-      if (!ADMIN_HOST) return res.redirect(302, '/private-link');
-      return res.status(404).send('Not found');
-    }
+        const link = await getLinkRowByDomain(host);
+        if (!link) {
+          if (!ADMIN_HOST) return res.redirect(302, '/private-link');
+          return res.status(404).send('Not found');
+        }
 
-    // En index.js
-    const ua = String(req.headers['user-agent'] || '').toLowerCase();
+        const ua = String(req.headers['user-agent'] || '').toLowerCase();
 
-    // Lista expandida para no fallar nunca
-    const isSocialApp = /tiktok|musically|instagram|fbav|fb_iab|messenger|fban|threads/.test(ua) || 
-                   req.headers['x-requested-with'] === 'com.zhiliaoapp.musically'; // Identificador directo de la App
+        // 1. Detección de App Social
+        const isSocialApp = /tiktok|musically|instagram|fbav|fb_iab|messenger|fban|threads/.test(ua) || 
+                      req.headers['x-requested-with'] === 'com.zhiliaoapp.musically';
 
-      // --- AQUÍ ES DONDE DEBEN IR LAS LÍNEAS QUE CAUSARON EL ERROR ---
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
-    // -------------------------------------------------------------
+        // 2. Cabeceras Anti-Caché (Para que el navegador no se salte pasos)
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
 
-    // Si es TikTok, forzamos render de instructions y le pasamos la variable
-    if (isSocialApp) {
-      return res.render('instructions', { 
-        id: link.id, 
-        isSocialApp: true  // <--- IMPORTANTE
-      });
-    }
+        // 3. LOGICA DE ENRUTAMIENTO DIRECTO
+        
+        // Si el usuario está DENTRO de la app (TikTok/IG)
+        if (isSocialApp) {
+          return res.render('instructions', { 
+            id: link.id, 
+            isSocialApp: true 
+          });
+        }
 
-    // Si no es TikTok, pero el modo es instructions, también enviamos instructions 
-    // pero con isSocialApp: false para que SÍ pueda saltar.
-    if (link.mode === 'instructions') {
-      return res.render('instructions', { 
-        id: link.id, 
-        isSocialApp: false // <--- IMPORTANTE
-      });
-    }
-
-    return res.render('searchEngine', { id: link.id, model: link });
-  });
+        // Si el usuario ya está FUERA (en Safari/Chrome)
+        // Saltamos la página de instrucciones y renderizamos 'loading' directamente
+        return res.render('loading', { id: link.id });
+    });
 
     // ───────────────────────────────────────────────────────────
     // API DE SALIDA (Única forma de obtener el link final)
