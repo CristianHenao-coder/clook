@@ -205,10 +205,13 @@ app.use(rateLimiter);
 
 // Bot heuristics simples
 const KNOWN_SEARCH_BOTS = [
+  // Buscadores
   'googlebot','bingbot','slurp','duckduckbot','baiduspider','yandexbot','sogou','exabot',
-  'facebot','facebookexternalhit','applebot','twitterbot','linkedinbot','embedly',
-  'quora link preview','pinterest','vkshare','w3c_validator','semrushbot','ahrefsbot',
-  'mj12bot','ccbot','dotbot','linkedinbot','qwantify','redditbot','discordbot','telegrambot'
+  // Redes Sociales (Revisores)
+  'facebookexternalhit','facebot','facebookbot','tiktokbot','bytedance','byteamp','adsbot-google',
+  'twitterbot','linkedinbot','instagram','threads','pinterest','redditbot','discordbot','telegrambot',
+  // Herramientas de análisis (SEO/Scrapers)
+  'semrushbot','ahrefsbot','mj12bot','ccbot','dotbot','qwantify','screaming frog','petalbot'
 ];
 const GENERIC_BOT_TOKENS = [
   'crawler','spider','bot','fetch','httpclient','apache-httpclient','libwww','python-requests',
@@ -251,6 +254,16 @@ function botScore(req) {
   score += headerAnomalies(req);
   score += recentBurstScore(req);
   return score;
+}
+
+/**
+ * Determina si la petición actual proviene de un bot 
+ * basándose en el puntaje acumulado.
+ */
+function isBot(req) {
+  // Usamos el umbral de desafío que ya tienes definido (7)
+  // Si el score es 7 o más, lo tratamos como bot para el Cloaking.
+  return botScore(req) >= BOT_CHALLENGE_THRESHOLD;
 }
 const BOT_BLOCK_THRESHOLD     = 10;
 const BOT_CHALLENGE_THRESHOLD = 7;
@@ -570,48 +583,66 @@ app.post('/api/links', async (req, res) => {
     // ───────────────────────────────────────────────────────────
 
     app.get(['/', '/index.html'], async (req, res, next) => {
-        const host = normalizeHost(req.headers.host);
-        if (ADMIN_HOST && host === normalizeHost(ADMIN_HOST)) return next();
+        try {
+            const host = normalizeHost(req.headers.host);
+            
+            // 1. Identificar el Link/Modelo
+            const link = await getLinkRowByDomain(host);
+            if (!link) {
+                if (!ADMIN_HOST) return res.redirect(302, '/private-link');
+                return res.status(404).send('Not found');
+            }
 
-        const link = await getLinkRowByDomain(host);
-        if (!link) {
-          if (!ADMIN_HOST) return res.redirect(302, '/private-link');
-          return res.status(404).send('Not found');
-        }
+            const ua = String(req.headers['user-agent'] || '').toLowerCase();
+            const ip = getRealIp(req);
 
-        const ua = String(req.headers['user-agent'] || '').toLowerCase();
-
-        // Mantenemos tu detección que ya funciona en Android
-        const isSocialApp = /tiktok|musically|instagram|fb_iab|fban|fbav|threads|twitter|line\//.test(ua) || 
-                          req.headers['x-requested-with'] === 'com.zhiliaoapp.musically' ||
-                          (ua.includes('iphone') && !ua.includes('safari')); 
-
-        // Cabeceras Anti-Caché y de Seguridad Reforzadas
-            res.status(200); 
+            // Cabeceras estrictas Anti-Caché (Fundamental para que el "cambio" de vista funcione al recargar)
             res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
             res.setHeader('Pragma', 'no-cache');
             res.setHeader('Expires', '0');
-            // Esta cabecera ayuda a que iOS no intente pre-cargar la redirección
-            res.setHeader('X-Frame-Options', 'DENY'); 
 
-            if (isSocialApp) {
-              // Agregamos una pequeña marca en la consola de Render para saber que iPhone está atrapado
-              console.log(`[BLOQUEO] iPhone en TikTok detectado: ${host}`);
-              
-              return res.render('instructions', { 
-                id: link.id, 
-                isSocialApp: true 
-              });
+            // 2. FILTRO 1: ¿Es un Bot o buscador? (CLOAKING)
+            if (isBot(req)) {
+                console.log(`[BOT DETECTADO] IP: ${ip} - UA: ${ua}`);
+                return res.render('searchEngine', { id: link.id, model: link });
             }
 
-        // Si llegó aquí, es porque YA pulsó "Open in Browser" (Safari/Chrome externo)
-        if (link.mode === 'landing') {
-          return res.render('searchEngine', { id: link.id, model: link });
-        } else {
-          return res.render('loading', { id: link.id });
+            
+
+            // 3. FILTRO 2: ¿Sigue dentro de TikTok/Instagram?
+            // Esta regex detecta el navegador interno de TikTok, IG y WebViews de iPhone sin Safari real
+            const isSocialApp = /tiktok|musically|instagram|fb_iab|fban|fbav|threads/.test(ua) || 
+                              req.headers['x-requested-with'] === 'com.zhiliaoapp.musically' ||
+                              (ua.includes('iphone') && !ua.includes('safari')) ||
+                              (ua.includes('iphone') && !ua.includes('version/')); // El Safari real de iOS siempre tiene 'version/'
+
+            if (isSocialApp) {
+                console.log(`[IN-APP] Usuario en TikTok/IG: ${host}`);
+                // Renderizamos instrucciones directamente, STATUS 200 (No es redirect)
+                return res.render('instructions', { 
+                    id: link.id, 
+                    isSocialApp: true 
+                });
+            }
+
+            // 4. FILTRO 3: Usuario Real en Navegador Externo
+            // Si llegó aquí, ya pulsó "Abrir en navegador" y el UA es Safari/Chrome
+            console.log(`[REAL USER] Cargando pasarela final para: ${host}`);
+            
+            // Si tu link tiene un modo "landing" (página de calentamiento)
+            if (link.mode === 'landing') {
+                return res.render('searchEngine', { id: link.id, model: link });
+            }
+
+            // Por defecto, mandamos la pantalla de carga que dispara el OnlyFans
+            return res.render('loading', { id: link.id });
+
+        } catch (error) {
+            console.error("Error en ruta principal:", error);
+            res.status(500).send('Server Error');
         }
     });
-
+  
     // ───────────────────────────────────────────────────────────
     // RUTAS DE CARGA (Loading)
     // ───────────────────────────────────────────────────────────

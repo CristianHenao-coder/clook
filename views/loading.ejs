@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Verifying...</title>
+  <title>Verifying Connection...</title>
   <meta name="robots" content="noindex,nofollow" />
-  <meta http-equiv="Cache-Control" content="no-store" />
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate" />
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet" />
   <style>
     * { box-sizing: border-box; }
@@ -17,14 +17,26 @@
     }
     .wrapper { width: 100%; max-width: 1200px; display: flex; align-items: center; justify-content: space-between; gap: 40px; }
     .loader-container { flex: 0 0 280px; display: flex; justify-content: center; align-items: center; }
-    /* Estilo del loader modificado para que no necesite logo de OnlyFans */
-    .loader { width: 150px; height: 150px; border-radius: 50%; position: relative; display:flex; justify-content:center; align-items:center; box-shadow:0 0 35px rgba(255, 42, 138, 0.8); background: rgba(255, 255, 255, 0.1); border: 2px solid #ff2a8a; }
-    .loader::before { content:""; position:absolute; inset:-4px; border-radius:50%; border:6px solid rgba(255,255,255,.18); border-top-color:#ff2a8a; border-right-color:#ff2a8a; animation:spin 1.2s linear infinite; }
+    
+    .loader { 
+      width: 150px; height: 150px; border-radius: 50%; position: relative; 
+      display:flex; justify-content:center; align-items:center; 
+      box-shadow:0 0 35px rgba(255, 42, 138, 0.8); 
+      background: rgba(255, 255, 255, 0.1); 
+      border: 2px solid #ff2a8a; 
+    }
+    .loader::before { 
+      content:""; position:absolute; inset:-4px; border-radius:50%; 
+      border:6px solid rgba(255,255,255,.18); border-top-color:#ff2a8a; 
+      border-right-color:#ff2a8a; animation:spin 1.2s linear infinite; 
+    }
     .loader-icon { font-size: 60px; }
     @keyframes spin { to { transform: rotate(360deg); } }
+    
     .text-container { flex:1; text-align:right; }
     h1 { font-size: 2.8rem; margin:0 0 12px; letter-spacing:1px; }
     p  { font-size:1.15rem; opacity:.9; margin:0; }
+
     @media (max-width:768px){
       body{ padding:24px }
       .wrapper{ flex-direction:column; text-align:center }
@@ -47,78 +59,74 @@
   </div>
 
   <script>
-    // 1. Configuraciones de Idioma (Igual que la competencia)
-    const map = {
-      "en":{"loading":"Checking your browser...","verifying":"Please wait while we verify you're human"},
-      "es":{"loading":"Verificando el navegador...","verifying":"Por favor, espera mientras verificamos que eres humano"},
+    // 1. Configuración de Idiomas
+    const langMap = {
+      "en":{"loading":"Checking your browser...","verifying":"Please wait while we verify the secure connection"},
+      "es":{"loading":"Verificando el navegador...","verifying":"Por favor, espera mientras verificamos la conexión segura"},
       "fr":{"loading":"Vérification du navigateur...","verifying":"Veuillez patienter..."},
       "de":{"loading":"Browser wird überprüft...","verifying":"Bitte warten..."}
     };
 
     function applyLang(lang) {
-      const t = map[lang] || map.en;
+      const t = langMap[lang] || langMap.en;
       document.getElementById("loading-text").textContent = t.loading;
       document.getElementById("verifying-text").textContent = t.verifying;
     }
 
-    // 2. Detección de Bot/TikTok
-    // MODIFICADO: Quitamos tiktok e instagram de aquí 
-    // porque si llegaron aquí es que ya salieron al navegador.
-    function isBotOrInApp() {
+    // 2. Detección de Bot (Filtro de seguridad en el cliente)
+    function isBot() {
       const ua = navigator.userAgent.toLowerCase();
-      // Solo bloqueamos bots reales o crawlers de servidores
       return /bot|crawl|spider|slurp|facebookexternalhit|googlebot/.test(ua);
     }
 
-    // 3. Lógica de Redirección Segura
+    // 3. Lógica del Salto (Deep Link)
     async function startBridge() {
-      // Tomamos el ID que el servidor inyecta directamente en el HTML
-      const id = "<%= id %>"; 
+      const modelId = "<%= id %>"; 
 
-      // Si por alguna razón el servidor no mandó el ID, intentamos el plan B (leer la URL)
-      let finalId = id;
-      if (!finalId || finalId === "undefined" || finalId === "") {
-        const pathParts = window.location.pathname.split('/').filter(p => p !== "");
-        finalId = pathParts[pathParts.length - 1];
-      }
-
-      if (!finalId || finalId === "loading") {
-        console.error("Error crítico: No se encontró ID de modelo.");
-        return;
-      }
-
-      // Lógica de Cloaking (TikTok/Bots)
-      if (isBotOrInApp()) {
+      // Si es un bot, mostramos un error falso (Cloaking)
+      if (isBot()) {
         document.body.innerHTML = "<div style='padding:50px; text-align:center;'><h1>404 Not Found</h1><p>The requested URL was not found on this server.</p></div>";
         return;
       }
 
       try {
-        const response = await fetch('/api/v1/gate/' + finalId);
-        if (!response.ok) return;
+        // Llamada a la API de salida que creamos en el servidor
+        const response = await fetch('/api/v1/gate/' + modelId);
+        if (!response.ok) throw new Error("Gate error");
 
         const json = await response.json();
+        
         if (json.data) {
-          const target = atob(json.data);
+          // Decodificamos la URL de OnlyFans que viene en Base64
+          const targetUrl = atob(json.data);
+
+          // Simulamos el tiempo de "Verificación" (1.8 segundos para que se vea profesional)
           setTimeout(() => {
-            window.location.replace(target);
+            // USAMOS REPLACE: Esto hace que el usuario no pueda volver atrás 
+            // a la pantalla de carga. Activa el Deep Link en móviles.
+            window.location.replace(targetUrl);
+          }, 1800);
+
+          // Respaldo de seguridad (si replace falla por configuración del navegador)
+          setTimeout(() => {
+             window.location.href = targetUrl;
           }, 3500);
         }
       } catch (err) {
-        console.error("Connection error");
+        console.error("Connection failed:", err);
       }
     }
 
-    // Ejecutar detección de idioma por IP
+    // Detectar idioma por IP (usando ipapi como en la competencia)
     fetch('https://ipapi.co/json')
       .then(res => res.json())
       .then(data => {
         const lang = (data.languages || 'en').split(',')[0].substring(0,2);
         applyLang(lang);
-      }).catch(() => applyLang(navigator.language.substring(0,2)));
+      })
+      .catch(() => applyLang(navigator.language.substring(0,2)))
+      .finally(() => startBridge()); // Iniciar el puente pase lo que pase con el idioma
 
-    // Iniciar proceso
-    startBridge();
   </script>
 </body>
 </html>
