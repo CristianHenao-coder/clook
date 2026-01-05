@@ -582,66 +582,61 @@ app.post('/api/links', async (req, res) => {
     // Enrutamiento por dominio propio (Lógica de Camuflaje)
     // ───────────────────────────────────────────────────────────
 
-    app.get(['/', '/index.html'], async (req, res, next) => {
-        try {
-            const host = normalizeHost(req.headers.host);
-            
-            // 1. Identificar el Link/Modelo
-            const link = await getLinkRowByDomain(host);
-            if (!link) {
-                if (!ADMIN_HOST) return res.redirect(302, '/private-link');
-                return res.status(404).send('Not found');
-            }
+// ───────────────────────────────────────────────────────────
+// Enrutamiento por dominio propio (Lógica de Camuflaje Pro)
+// ───────────────────────────────────────────────────────────
+app.get(['/', '/index.html'], async (req, res, next) => {
+    try {
+        const host = normalizeHost(req.headers.host);
+        const link = await getLinkRowByDomain(host);
 
-            const ua = String(req.headers['user-agent'] || '').toLowerCase();
-            const ip = getRealIp(req);
-
-            // Cabeceras estrictas Anti-Caché (Fundamental para que el "cambio" de vista funcione al recargar)
-            res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
-            res.setHeader('Pragma', 'no-cache');
-            res.setHeader('Expires', '0');
-
-            // 2. FILTRO 1: ¿Es un Bot o buscador? (CLOAKING)
-            if (isBot(req)) {
-                console.log(`[BOT DETECTADO] IP: ${ip} - UA: ${ua}`);
-                return res.render('searchEngine', { id: link.id, model: link });
-            }
-
-            
-
-            // 3. FILTRO 2: ¿Sigue dentro de TikTok/Instagram?
-            // Esta regex detecta el navegador interno de TikTok, IG y WebViews de iPhone sin Safari real
-            const isSocialApp = /tiktok|musically|instagram|fb_iab|fban|fbav|threads/.test(ua) || 
-                              req.headers['x-requested-with'] === 'com.zhiliaoapp.musically' ||
-                              (ua.includes('iphone') && !ua.includes('safari')) ||
-                              (ua.includes('iphone') && !ua.includes('version/')); // El Safari real de iOS siempre tiene 'version/'
-
-            if (isSocialApp) {
-                console.log(`[IN-APP] Usuario en TikTok/IG: ${host}`);
-                // Renderizamos instrucciones directamente, STATUS 200 (No es redirect)
-                return res.render('instructions', { 
-                    id: link.id, 
-                    isSocialApp: true 
-                });
-            }
-
-            // 4. FILTRO 3: Usuario Real en Navegador Externo
-            // Si llegó aquí, ya pulsó "Abrir en navegador" y el UA es Safari/Chrome
-            console.log(`[REAL USER] Cargando pasarela final para: ${host}`);
-            
-            // Si tu link tiene un modo "landing" (página de calentamiento)
-            if (link.mode === 'landing') {
-                return res.render('searchEngine', { id: link.id, model: link });
-            }
-
-            // Por defecto, mandamos la pantalla de carga que dispara el OnlyFans
-            return res.render('loading', { id: link.id });
-
-        } catch (error) {
-            console.error("Error en ruta principal:", error);
-            res.status(500).send('Server Error');
+        if (!link) {
+            if (!ADMIN_HOST) return res.redirect(302, '/private-link');
+            return res.status(404).send('Not found');
         }
-    });
+
+        const ua = String(req.headers['user-agent'] || '').toLowerCase();
+        const { n } = req.query; // Capturamos el parámetro de salto ?n=1
+
+        // Cabeceras Anti-Caché estrictas para evitar el bucle de "atrás"
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+
+        // 1. SI TRAE EL PASE VIP (?n=1): Directo a Loading (Evita bucles en iPhone)
+        if (n === '1') {
+            return res.render('loading', { id: link.id });
+        }
+
+        // 2. FILTRO BOT (Cloaking): Si es bot, ve la web de "Search Engine"
+        if (isBot(req)) {
+            return res.render('searchEngine', { id: link.id, model: link });
+        }
+
+        // 3. DETECCIÓN SOCIAL / IN-APP
+        const isIOS = /iphone|ipad|ipod/.test(ua);
+        // El Safari real SIEMPRE tiene "version/" y "safari/". Los WebViews de Apps NO.
+        const isSafariReal = ua.includes('safari') && ua.includes('version/') && !ua.includes('crios') && !ua.includes('fxios');
+        const isInAppSocial = /tiktok|musically|instagram|fb_iab|fban|fbav|threads|byte/.test(ua);
+
+        // Si detectamos App Social o es un iPhone pero NO es Safari Real:
+        if (isInAppSocial || (isIOS && !isSafariReal)) {
+            console.log(`[IN-APP] Enviando instrucciones: ${host}`);
+            return res.render('instructions', { id: link.id, isSocialApp: true });
+        }
+
+        // 4. USUARIO LIMPIO (Chrome/Safari real)
+        if (link.mode === 'landing') {
+            return res.render('searchEngine', { id: link.id, model: link });
+        }
+
+        return res.render('loading', { id: link.id });
+
+    } catch (error) {
+        console.error("Error en ruta principal:", error);
+        res.status(500).send('Server Error');
+    }
+});
   
     // ───────────────────────────────────────────────────────────
     // RUTAS DE CARGA (Loading)

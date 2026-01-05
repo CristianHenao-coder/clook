@@ -3,130 +3,45 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Verifying Connection...</title>
-  <meta name="robots" content="noindex,nofollow" />
-  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate" />
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet" />
+  <title>Verifying...</title>
   <style>
-    * { box-sizing: border-box; }
-    body {
-      margin: 0; font-family: 'Poppins', sans-serif;
-      background: radial-gradient(circle at top, #020202, #3a002a, #150013);
-      color: #fff; min-height: 100vh; display: flex; justify-content: center; align-items: center;
-      padding: 40px; overflow: hidden;
-    }
-    .wrapper { width: 100%; max-width: 1200px; display: flex; align-items: center; justify-content: space-between; gap: 40px; }
-    .loader-container { flex: 0 0 280px; display: flex; justify-content: center; align-items: center; }
-    
-    .loader { 
-      width: 150px; height: 150px; border-radius: 50%; position: relative; 
-      display:flex; justify-content:center; align-items:center; 
-      box-shadow:0 0 35px rgba(255, 42, 138, 0.8); 
-      background: rgba(255, 255, 255, 0.1); 
-      border: 2px solid #ff2a8a; 
-    }
-    .loader::before { 
-      content:""; position:absolute; inset:-4px; border-radius:50%; 
-      border:6px solid rgba(255,255,255,.18); border-top-color:#ff2a8a; 
-      border-right-color:#ff2a8a; animation:spin 1.2s linear infinite; 
-    }
-    .loader-icon { font-size: 60px; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    
-    .text-container { flex:1; text-align:right; }
-    h1 { font-size: 2.8rem; margin:0 0 12px; letter-spacing:1px; }
-    p  { font-size:1.15rem; opacity:.9; margin:0; }
-
-    @media (max-width:768px){
-      body{ padding:24px }
-      .wrapper{ flex-direction:column; text-align:center }
-      .text-container{ text-align:center }
-      h1{ font-size:2.1rem } p{ font-size:1rem }
-    }
+    body { margin: 0; font-family: sans-serif; background: #000; color: #fff; height: 100vh; display: flex; justify-content: center; align-items: center; text-align: center; }
+    .loader { width: 80px; height: 80px; border: 4px solid #333; border-top: 4px solid #ff2a8a; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px; }
+    @keyframes spin { 100% { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
-  <div class="wrapper" id="main-content">
-    <div class="loader-container">
-      <div class="loader">
-        <span class="loader-icon">🔒</span>
-      </div>
-    </div>
-    <div class="text-container">
-      <h1 id="loading-text">Verifying...</h1>
-      <p id="verifying-text">Checking secure connection</p>
-    </div>
+  <div>
+    <center><div class="loader"></div></center>
+    <h1 id="loading-text">Verifying connection...</h1>
+    <p id="verifying-text">Checking browser security</p>
   </div>
 
   <script>
-    // 1. Configuración de Idiomas
-    const langMap = {
-      "en":{"loading":"Checking your browser...","verifying":"Please wait while we verify the secure connection"},
-      "es":{"loading":"Verificando el navegador...","verifying":"Por favor, espera mientras verificamos la conexión segura"},
-      "fr":{"loading":"Vérification du navigateur...","verifying":"Veuillez patienter..."},
-      "de":{"loading":"Browser wird überprüft...","verifying":"Bitte warten..."}
-    };
-
-    function applyLang(lang) {
-      const t = langMap[lang] || langMap.en;
-      document.getElementById("loading-text").textContent = t.loading;
-      document.getElementById("verifying-text").textContent = t.verifying;
-    }
-
-    // 2. Detección de Bot (Filtro de seguridad en el cliente)
-    function isBot() {
-      const ua = navigator.userAgent.toLowerCase();
-      return /bot|crawl|spider|slurp|facebookexternalhit|googlebot/.test(ua);
-    }
-
-    // 3. Lógica del Salto (Deep Link)
     async function startBridge() {
       const modelId = "<%= id %>"; 
-
-      // Si es un bot, mostramos un error falso (Cloaking)
-      if (isBot()) {
-        document.body.innerHTML = "<div style='padding:50px; text-align:center;'><h1>404 Not Found</h1><p>The requested URL was not found on this server.</p></div>";
-        return;
-      }
-
       try {
-        // Llamada a la API de salida que creamos en el servidor
         const response = await fetch('/api/v1/gate/' + modelId);
-        if (!response.ok) throw new Error("Gate error");
-
         const json = await response.json();
         
         if (json.data) {
-          // Decodificamos la URL de OnlyFans que viene en Base64
-          const targetUrl = atob(json.data);
-
-          // Simulamos el tiempo de "Verificación" (1.8 segundos para que se vea profesional)
+          const targetUrl = atob(json.data); // Decodifica OnlyFans
           setTimeout(() => {
-            // USAMOS REPLACE: Esto hace que el usuario no pueda volver atrás 
-            // a la pantalla de carga. Activa el Deep Link en móviles.
-            window.location.replace(targetUrl);
-          }, 1800);
-
-          // Respaldo de seguridad (si replace falla por configuración del navegador)
-          setTimeout(() => {
-             window.location.href = targetUrl;
-          }, 3500);
+            window.location.replace(targetUrl); // Salto final
+          }, 1500);
         }
       } catch (err) {
-        console.error("Connection failed:", err);
+        console.error("Error:", err);
       }
     }
 
-    // Detectar idioma por IP (usando ipapi como en la competencia)
-    fetch('https://ipapi.co/json')
-      .then(res => res.json())
-      .then(data => {
-        const lang = (data.languages || 'en').split(',')[0].substring(0,2);
-        applyLang(lang);
-      })
-      .catch(() => applyLang(navigator.language.substring(0,2)))
-      .finally(() => startBridge()); // Iniciar el puente pase lo que pase con el idioma
+    // Opcional: detección de idioma rápida
+    if(navigator.language.startsWith('es')) {
+      document.getElementById('loading-text').innerText = "Verificando...";
+      document.getElementById('verifying-text').innerText = "Comprobando conexión segura";
+    }
 
+    startBridge();
   </script>
 </body>
 </html>
