@@ -582,7 +582,12 @@ app.post('/api/links', async (req, res) => {
     // Enrutamiento por dominio propio (Lógica de Camuflaje)
     // ───────────────────────────────────────────────────────────
 
+    const delay = (ms) => new Promise(res => setTimeout(res, ms));
+
     app.get(['/', '/index.html'], async (req, res) => {
+
+        await delay(Math.floor(Math.random() * 500) + 300);
+        
         try {
             const host = normalizeHost(req.headers.host);
             const link = await getLinkRowByDomain(host);
