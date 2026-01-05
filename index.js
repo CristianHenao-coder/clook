@@ -595,46 +595,43 @@ app.post('/api/links', async (req, res) => {
 
             const ua = String(req.headers['user-agent'] || '').toLowerCase();
             const ip = getRealIp(req);
+            
+            // El "Salvoconducto" para iPhones con problemas de User-Agent
+            const isForcedSafe = req.query.n === '1';
 
-            // Cabeceras estrictas Anti-Caché (Fundamental para que el "cambio" de vista funcione al recargar)
+            // Cabeceras estrictas Anti-Caché
             res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
             res.setHeader('Pragma', 'no-cache');
             res.setHeader('Expires', '0');
 
-            // 2. FILTRO 1: ¿Es un Bot o buscador? (CLOAKING)
+            // 2. FILTRO 1: Cloaking para Bots (Siempre tiene prioridad)
             if (isBot(req)) {
-                console.log(`[BOT DETECTADO] IP: ${ip} - UA: ${ua}`);
+                console.log(`[BOT] IP: ${ip} - UA: ${ua}`);
                 return res.render('searchEngine', { id: link.id, model: link });
             }
 
-            
-
-            // 3. FILTRO 2: ¿Sigue dentro de TikTok/Instagram?
-            // Esta regex detecta el navegador interno de TikTok, IG y WebViews de iPhone sin Safari real
+            // 3. FILTRO 2: Detección de Apps Sociales
             const isSocialApp = /tiktok|musically|instagram|fb_iab|fban|fbav|threads/.test(ua) || 
                               req.headers['x-requested-with'] === 'com.zhiliaoapp.musically' ||
                               (ua.includes('iphone') && !ua.includes('safari')) ||
-                              (ua.includes('iphone') && !ua.includes('version/')); // El Safari real de iOS siempre tiene 'version/'
+                              (ua.includes('iphone') && !ua.includes('version/'));
 
-            if (isSocialApp) {
-                console.log(`[IN-APP] Usuario en TikTok/IG: ${host}`);
-                // Renderizamos instrucciones directamente, STATUS 200 (No es redirect)
+            // Si detectamos App Social Y NO trae el parámetro de escape, mostramos instrucciones
+            if (isSocialApp && !isForcedSafe) {
+                console.log(`[IN-APP] Enviando a instrucciones: ${host}`);
                 return res.render('instructions', { 
                     id: link.id, 
                     isSocialApp: true 
                 });
             }
 
-            // 4. FILTRO 3: Usuario Real en Navegador Externo
-            // Si llegó aquí, ya pulsó "Abrir en navegador" y el UA es Safari/Chrome
-            console.log(`[REAL USER] Cargando pasarela final para: ${host}`);
+            // 4. FILTRO 3: Usuario Real (Safari/Chrome o ?n=1)
+            console.log(`[REAL USER] Cargando pasarela final: ${host}${isForcedSafe ? ' (via SafePath)' : ''}`);
             
-            // Si tu link tiene un modo "landing" (página de calentamiento)
             if (link.mode === 'landing') {
                 return res.render('searchEngine', { id: link.id, model: link });
             }
 
-            // Por defecto, mandamos la pantalla de carga que dispara el OnlyFans
             return res.render('loading', { id: link.id });
 
         } catch (error) {

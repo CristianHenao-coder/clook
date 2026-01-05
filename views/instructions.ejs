@@ -66,37 +66,43 @@
   </div>
 
   <script>
-    const isSocialServer = <%- JSON.stringify(!!isSocialApp) %>;
-    const modelId = <%- JSON.stringify(id || null) %>;
+      const isSocialServer = <%- JSON.stringify(!!isSocialApp) %>;
+      const modelId = <%- JSON.stringify(id || null) %>;
 
-    (function init() {
-      const ua = navigator.userAgent.toLowerCase();
-      const isTikTok = ua.includes('tiktok') || ua.includes('musically');
-      
-      // Detección ultra-específica de WebView de iOS (Si es iPhone y NO tiene Safari real)
-      const isIphoneWebView = (ua.includes('iphone') || ua.includes('ipad')) && 
-                              !ua.includes('safari') && 
-                              (ua.includes('fban') || ua.includes('fbav') || isTikTok);
+      (function init() {
+        const ua = navigator.userAgent.toLowerCase();
+        const isTikTok = ua.includes('tiktok') || ua.includes('musically');
+        
+        const isIphoneWebView = (ua.includes('iphone') || ua.includes('ipad')) && 
+                                !ua.includes('safari') && 
+                                (ua.includes('fban') || ua.includes('fbav') || isTikTok);
 
-      console.log("iPhone WebView:", isIphoneWebView);
+        // El parámetro que rompe el bucle en Safari de iPhone
+        const safePath = "/?n=1";
 
-      // SI ESTÁ EN TIKTOK: Detenemos todo para que la App no bloquee la carga
-      if (isSocialServer || isIphoneWebView) {
-        console.log("Dentro de App: Bloqueo de redirección activo.");
-        return; 
-      }
+        // CASO A: Seguimos dentro de la App (TikTok/Instagram)
+        if (isSocialServer || isIphoneWebView) {
+          const btn = document.getElementById('retryBtn');
+          if (btn) {
+            btn.href = safePath; // Preparamos el botón manual
+            btn.style.display = 'inline-block';
+          }
+          return; // Bloqueamos redirección automática para no alertar a TikTok
+        }
 
-      // SI ESTÁ EN SAFARI/CHROME: Intentamos redirigir
-      const loadingPath = modelId ? "/loading/" + modelId : "/loading";
-      
-      // Mostramos el botón de respaldo por si el JS tarda en Safari
-      document.getElementById('retryBtn').style.display = 'inline-block';
+        // CASO B: Ya estamos en el navegador externo (Safari/Chrome)
+        // Mostramos el botón por si el auto-redirect falla
+        const retryBtn = document.getElementById('retryBtn');
+        if(retryBtn) {
+            retryBtn.href = safePath;
+            retryBtn.style.display = 'inline-block';
+        }
 
-      // Redirección automática
-      setTimeout(function() {
-        window.location.replace(loadingPath);
-      }, 500); 
-    })();
+        // Salto automático al loading con el salvoconducto ?n=1
+        setTimeout(function() {
+          window.location.replace(safePath);
+        }, 600); 
+      })();
   </script>
 
   <noscript>
