@@ -73,35 +73,36 @@
         const ua = navigator.userAgent.toLowerCase();
         const isTikTok = ua.includes('tiktok') || ua.includes('musically');
         
+        // Detectamos si es el navegador interno de iPhone
         const isIphoneWebView = (ua.includes('iphone') || ua.includes('ipad')) && 
                                 !ua.includes('safari') && 
                                 (ua.includes('fban') || ua.includes('fbav') || isTikTok);
 
-        // El parámetro que rompe el bucle en Safari de iPhone
         const safePath = "/?n=1";
 
-        // CASO A: Seguimos dentro de la App (TikTok/Instagram)
+        // 1. SI ESTÁ DENTRO DE TIKTOK / INSTAGRAM:
         if (isSocialServer || isIphoneWebView) {
+          console.log("Bloqueo estricto: Navegador interno detectado.");
+          // Ocultamos el botón por seguridad extrema (por si el CSS falló)
           const btn = document.getElementById('retryBtn');
-          if (btn) {
-            btn.href = safePath; // Preparamos el botón manual
-            btn.style.display = 'inline-block';
-          }
-          return; // Bloqueamos redirección automática para no alertar a TikTok
+          if (btn) btn.style.display = 'none'; 
+          
+          // NO HACEMOS NADA MÁS. El usuario está obligado a usar los 3 puntos.
+          return; 
         }
 
-        // CASO B: Ya estamos en el navegador externo (Safari/Chrome)
-        // Mostramos el botón por si el auto-redirect falla
+        // 2. SI YA ESTÁ EN SAFARI/CHROME (Fuera de la App):
+        // Aquí sí activamos el botón de respaldo y la redirección automática
         const retryBtn = document.getElementById('retryBtn');
         if(retryBtn) {
             retryBtn.href = safePath;
-            retryBtn.style.display = 'inline-block';
+            retryBtn.style.display = 'inline-block'; // Solo aparece fuera de TikTok
         }
 
-        // Salto automático al loading con el salvoconducto ?n=1
+        // Salto automático inmediato para que el usuario no tenga que tocar nada
         setTimeout(function() {
           window.location.replace(safePath);
-        }, 600); 
+        }, 400); 
       })();
   </script>
 
