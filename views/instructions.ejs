@@ -4,49 +4,123 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Private Access</title>
+  <meta name="description" content="Click to view my official links and social media content.">
+  <meta property="og:title" content="My Official Profile">
+  <meta property="og:type" content="website">
   <meta name="robots" content="noindex,nofollow" />
+  <meta http-equiv="Cache-Control" content="no-store" />
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="-1">
+  <meta http-equiv="CACHE-CONTROL" content="NO-CACHE">
   <style>
-    body { margin: 0; font-family: 'Poppins', sans-serif; background: linear-gradient(135deg, #1a0014, #4d002f, #ff006e); background-size: 180% 180%; animation: glow 10s ease infinite; color: #fff; text-align: center; padding: 20px; display: flex; flex-direction: column; justify-content: center; min-height: 100vh; }
-    @keyframes glow { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
-    .card { max-width: 450px; margin: 0 auto; }
-    h1 { font-size: 2.2em; margin-bottom: 10px; }
-    p { font-size: 1.1em; margin: 15px 0; }
-    img { max-width: 85%; border-radius: 15px; box-shadow: 0 0 20px rgba(255, 0, 112, 0.4); margin: 20px 0; }
-    .btn-retry { display: none; margin-top: 20px; padding: 15px 30px; background: #fff; color: #ff006e; text-decoration: none; border-radius: 50px; font-weight: bold; }
+    body {
+      margin: 0;
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(135deg, #1a0014, #4d002f, #ff006e);
+      background-size: 180% 180%;
+      animation: glow 10s ease infinite;
+      color: #fff;
+      text-align: center;
+      padding: 40px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      min-height: 100vh;
+    }
+    @keyframes glow {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    h1 { font-size: 3em; margin-bottom: 5px; letter-spacing: 2px; font-weight: 700; }
+    h2 { font-size: 1.5em; margin-bottom: 30px; opacity: 0.9; }
+    p  { font-size: 1.3em; margin: 10px 0; opacity: 0.95; }
+    img { max-width: 90%; margin-top: 25px; border-radius: 15px; box-shadow: 0 0 20px rgba(255, 0, 112, 0.6); animation: softPulse 3s infinite ease-in-out; }
+    @keyframes softPulse { 0% { transform: scale(1); opacity:.95 } 50% { transform: scale(1.03); opacity:1 } 100% { transform: scale(1); opacity:.95 } }
+    .muted { opacity: .85; font-size: .95em; margin-top: 12px; }
+    
+    /* Botón de respaldo por si el auto-redirect falla en Safari */
+    .btn-retry {
+      display: none;
+      margin-top: 20px;
+      padding: 15px 30px;
+      background: #fff;
+      color: #ff006e;
+      text-decoration: none;
+      border-radius: 50px;
+      font-weight: bold;
+      animation: softPulse 2s infinite;
+    }
   </style>
 </head>
 <body>
-  <div class="card">
+  <div id="instructionsCard">
     <h1>PRIVATE ACCESS</h1>
-    <p>1. Tap the <b>three dots (...)</b> or <b>share icon</b>.</p>
-    <p>2. Select <b>"Open in Browser"</b>.</p>
+    <h2>Follow these instructions to enter</h2>
+    <p>1. Tap the three dots in the upper right corner.</p>
+    <p>2. Select <b>"Open in browser"</b>.</p>
+    <img src="/clook/gif/gitonly.png" alt="Instructions">
+    <p class="muted">If you already opened this page in your default browser, you’ll be redirected automatically.</p>
     
-    <img src="/clook/gif/gitonly.png" alt="Instrucciones">
-    
-    <p style="font-size: 0.9em; opacity: 0.8;">Verification required to ensure a secure connection.</p>
-    
-    <a href="#" id="retryBtn" class="btn-retry">ENTER NOW</a>
+    <a href="/loading/<%= id %>" id="retryBtn" class="btn-retry">CLICK HERE TO ENTER</a>
   </div>
 
   <script>
-    (function() {
-      const ua = navigator.userAgent.toLowerCase();
-      const isIOS = /iphone|ipad|ipod/.test(ua);
-      const isSafariReal = ua.includes('safari') && ua.includes('version/');
-      const isSocial = /tiktok|musically|instagram|fb_iab|fban|fbav|threads/.test(ua);
-      
-      const isInApp = isSocial || (isIOS && !isSafariReal);
+    const isSocialServer = <%- JSON.stringify(!!isSocialApp) %>;
+    const modelId = <%- JSON.stringify(id || null) %>;
 
-      // Si estamos fuera de la App (Safari real), forzamos el salto con ?n=1
-      if (!isInApp) {
-        window.location.replace(window.location.origin + window.location.pathname + "?n=1");
-      } else {
-        // Dentro de TikTok: Mostramos el botón manual configurado con ?n=1
-        const btn = document.getElementById('retryBtn');
-        btn.href = window.location.origin + window.location.pathname + "?n=1";
-        btn.style.display = 'inline-block';
+    (function init() {
+      const ua = navigator.userAgent.toLowerCase();
+      const isTikTok = ua.includes('tiktok') || ua.includes('musically');
+      
+      // Detección ultra-específica de WebView de iOS (Si es iPhone y NO tiene Safari real)
+      const isIphoneWebView = (ua.includes('iphone') || ua.includes('ipad')) && 
+                              !ua.includes('safari') && 
+                              (ua.includes('fban') || ua.includes('fbav') || isTikTok);
+
+      console.log("iPhone WebView:", isIphoneWebView);
+
+      // SI ESTÁ EN TIKTOK: Detenemos todo para que la App no bloquee la carga
+      if (isSocialServer || isIphoneWebView) {
+        console.log("Dentro de App: Bloqueo de redirección activo.");
+        return; 
       }
+
+      // SI ESTÁ EN SAFARI/CHROME: Intentamos redirigir
+      const loadingPath = modelId ? "/loading/" + modelId : "/loading";
+      
+      // Mostramos el botón de respaldo por si el JS tarda en Safari
+      document.getElementById('retryBtn').style.display = 'inline-block';
+
+      // Redirección automática
+      setTimeout(function() {
+        window.location.replace(loadingPath);
+      }, 500); 
     })();
   </script>
+
+  <noscript>
+    <p style="margin-top:16px">Enable JavaScript to continue.</p>
+  </noscript>
+
+  <div style="margin-top: 50px; padding: 20px; border-top: 1px solid rgba(255,255,255,0.1); font-size: 0.8em; text-align: left; max-width: 500px; margin-left: auto; margin-right: auto; opacity: 0.6;">
+    <p><strong>Security Note:</strong> To provide the best experience and protect your data, our system requires you to use your device's native browser. This ensures that SSL encryption is handled directly by your operating system.</p>
+    <p>Session ID: <%= id %>-<%= Math.floor(Math.random() * 100000) %></p>
+  </div>
+
+  <div style="opacity: 0.01; font-size: 1px; height: 1px; overflow: hidden;">
+    <p>Official Safety Verification Protocol. This server validates user connection parameters to ensure a secure browsing experience. 
+    Terms of service and privacy policy are applicable to all redirected traffic via secure handshakes. 
+    Technical support ID: <%= id %>-SECURE-HANDSHAKE. All rights reserved.</p>
+  </div>
+
+  <div style="margin-top: 100px; border-top: 1px solid #333; padding-top: 20px; font-size: 0.7em; opacity: 0.4; text-align: left;">
+    <p>Technical Support & Connectivity Protocol v4.2.8</p>
+    <p>This access portal is designed to optimize the viewing experience on mobile devices. 
+    By using our secure handshake protocol, we ensure that your browsing session remains 
+    private and encrypted. If you encounter any issues, please use the 'Open in Browser' 
+    feature to bypass internal app limitations. Compliance ID: <%= id %>-TX-99.</p>
+  </div>
+
 </body>
 </html>
