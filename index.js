@@ -582,63 +582,51 @@ app.post('/api/links', async (req, res) => {
     // Enrutamiento por dominio propio (Lógica de Camuflaje)
     // ───────────────────────────────────────────────────────────
 
-    app.get(['/', '/index.html'], async (req, res, next) => {
+    app.get(['/', '/index.html'], async (req, res) => {
         try {
             const host = normalizeHost(req.headers.host);
-            
-            // 1. Identificar el Link/Modelo
             const link = await getLinkRowByDomain(host);
-            if (!link) {
-                if (!ADMIN_HOST) return res.redirect(302, '/private-link');
-                return res.status(404).send('Not found');
-            }
+            if (!link) return res.status(404).send('Not found');
 
             const ua = String(req.headers['user-agent'] || '').toLowerCase();
-            const ip = getRealIp(req);
-            
-            // El "Salvoconducto" para iPhones con problemas de User-Agent
             const isForcedSafe = req.query.n === '1';
 
-            // Cabeceras estrictas Anti-Caché
-            res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
-            res.setHeader('Pragma', 'no-cache');
-            res.setHeader('Expires', '0');
+            // Heurística rápida de Apps Sociales (FAST PATH)
+            const isSocialApp = /tiktok|musically|instagram|fb_iab|fban|fbav|threads/.test(ua) || 
+                                req.headers['x-requested-with'] === 'com.zhiliaoapp.musically' ||
+                                (ua.includes('iphone') && !ua.includes('version/'));
 
-            // 2. FILTRO 1: Cloaking para Bots (Siempre tiene prioridad)
+            // 1. PRIORIDAD ABSOLUTA: BOTS (CLOAKING)
             if (isBot(req)) {
-                console.log(`[BOT] IP: ${ip} - UA: ${ua}`);
-                return res.render('searchEngine', { id: link.id, model: link });
+                return res.render('searchEngine', { 
+                    id: link.id, 
+                    model: link 
+                });
             }
 
-            // 3. FILTRO 2: Detección de Apps Sociales
-            const isSocialApp = /tiktok|musically|instagram|fb_iab|fban|fbav|threads/.test(ua) || 
-                              req.headers['x-requested-with'] === 'com.zhiliaoapp.musically' ||
-                              (ua.includes('iphone') && !ua.includes('safari')) ||
-                              (ua.includes('iphone') && !ua.includes('version/'));
-
-            // Si detectamos App Social Y NO trae el parámetro de escape, mostramos instrucciones
+            // 2. FAST RESPONSE PARA SOCIAL APPS (SI NO HAY SALVOCONDUCTO)
             if (isSocialApp && !isForcedSafe) {
-                console.log(`[IN-APP] Enviando a instrucciones: ${host}`);
                 return res.render('instructions', { 
                     id: link.id, 
                     isSocialApp: true 
                 });
             }
 
-            // 4. FILTRO 3: Usuario Real (Safari/Chrome o ?n=1)
-            console.log(`[REAL USER] Cargando pasarela final: ${host}${isForcedSafe ? ' (via SafePath)' : ''}`);
-            
+            // 3. USUARIO REAL (Browser real o paso consciente con ?n=1)
             if (link.mode === 'landing') {
-                return res.render('searchEngine', { id: link.id, model: link });
+                return res.render('searchEngine', { 
+                    id: link.id, 
+                    model: link 
+                });
             }
 
             return res.render('loading', { id: link.id });
 
         } catch (error) {
-            console.error("Error en ruta principal:", error);
-            res.status(500).send('Server Error');
+            res.status(500).send('Error');
         }
     });
+
   
     // ───────────────────────────────────────────────────────────
     // RUTAS DE CARGA (Loading)
