@@ -600,120 +600,41 @@ app.post('/api/links', async (req, res) => {
     // ───────────────────────────────────────────────────────────
 // RUTA MAESTRA: ENRUTAMIENTO NIVEL INMORTAL
 // ───────────────────────────────────────────────────────────
+// ───────────────────────────────────────────────────────────
+// RUTAS PRINCIPALES (RAÍZ Y SLUG) - VERSIÓN ANTI-PARPADEO
+// ───────────────────────────────────────────────────────────
+
 app.get(['/', '/index.html'], async (req, res) => {
-    // Latencia aleatoria para romper patrones de servidor automático
-    await delay(Math.floor(Math.random() * 600) + 400);
+  await delay(Math.floor(Math.random() * 500) + 300);
+  try {
+    const host = normalizeHost(req.headers.host);
+    const link = await getLinkRowByDomain(host);
+    if (!link) return res.status(404).send('Not Found');
+
+    const ua = String(req.headers['user-agent'] || '').toLowerCase();
+    const isMobile = /iphone|ipad|android|blackberry/i.test(ua);
     
-    try {
-        const host = normalizeHost(req.headers.host);
-        const link = await getLinkRowByDomain(host);
-        if (!link) return res.status(404).send('Not Found');
+    // DETECCIÓN REFORZADA: Si el User-Agent dice TikTok, ES TikTok.
+    const isSocialApp = /tiktok|instagram|fb_iab|fban|fbav|threads|musically/.test(ua) || 
+                        String(req.headers['x-requested-with']).includes('musically');
 
-        const ua = String(req.headers['user-agent'] || '').toLowerCase();
-        
-        // Detección de entorno
-        const isMobile = /iphone|ipad|android|blackberry|iemobile/i.test(ua);
-        const isSocialApp = /tiktok|instagram|fb_iab|fban|fbav|threads/.test(ua) || 
-                            req.headers['x-requested-with'] === 'com.zhiliaoapp.musically';
-        
-        // Marcador de "salida" (e=1) que viene de tu script de escape en la landing
-        const hasEscaped = req.query.e === '1';
-
-        // 🛡️ CAPA 1: CLOAKING TOTAL (BOTS Y PC)
-        // Si no es un móvil real o es un bot detectado, mostramos la Landing
-        // pero desactivamos internamente cualquier posibilidad de redirección.
-        if (isBot(req) || !isMobile) {
-            console.log(`[SHIELD] Cloaking activo para: ${getRealIp(req)}`);
-            return res.render('searchEngine', { 
-                id: link.id, 
-                model: link, 
-                isBotRequest: true, 
-                isSocialApp: false 
-            });
-        }
-
-        // 🛡️ CAPA 2: CONTROL DE FLUJO SOCIAL (TIKTOK/IG)
-        // Si el usuario está dentro de la App, le mostramos la Landing 
-        // pero activamos el "Modo Instrucciones" dentro de la misma Landing.
-        if (isSocialApp && !hasEscaped) {
-            return res.render('searchEngine', { 
-                id: link.id, 
-                model: link, 
-                isBotRequest: false,
-                isSocialApp: true // Esto activará el overlay de "Abrir en navegador"
-            });
-        }
-
-        // 🛡️ CAPA 3: USUARIO LIBERADO
-        // Si el usuario ya está en Safari/Chrome, mostramos la Landing normal
-        // donde el botón de "Exclusive Access" ya está activo.
-        return res.render('searchEngine', { 
-            id: link.id, 
-            model: link, 
-            isBotRequest: false,
-            isSocialApp: false
-        });
-
-    } catch (error) {
-        console.error("[CRITICAL ROUTE ERROR]", error);
-        res.status(500).send('System Maintenance');
+    // 🛡️ CAPA 1: BOTS Y PC
+    if (isBot(req) || !isMobile) {
+      return res.render('searchEngine', { id: link.id, model: link, isBotRequest: true, isSocialApp: false });
     }
+
+    // 🛡️ CAPA 2: DENTRO DE TIKTOK (EL ESCUDO MANDA)
+    // Eliminamos el chequeo de "hasEscaped" aquí para que el escudo sea persistente en la App.
+    if (isSocialApp) {
+      return res.render('searchEngine', { id: link.id, model: link, isBotRequest: false, isSocialApp: true });
+    }
+
+    // 🛡️ CAPA 3: NAVEGADOR EXTERNO
+    return res.render('searchEngine', { id: link.id, model: link, isBotRequest: false, isSocialApp: false });
+  } catch (e) {
+    res.status(500).send('Maintenance');
+  }
 });
-
-  
-    // ───────────────────────────────────────────────────────────
-    // RUTAS DE CARGA (Loading)
-    // ───────────────────────────────────────────────────────────
-
-    // Por dominio propio
-    app.get(['/loading', '/loading/'], async (req, res) => {
-      const host = normalizeHost(req.headers.host);
-      if (ADMIN_HOST && host === normalizeHost(ADMIN_HOST)) return res.status(404).send('Not found');
-      
-      const link = await getLinkRowByDomain(host);
-      if (!link) return res.status(404).send('Invalid link');
-      
-      return res.render('loading', { id: link.id });
-    });
-
-    app.get('/loading/:id', async (req, res) => {
-      // Si es un bot intentando saltar directo al loading, le damos un 404
-      if (isBot(req)) {
-          return res.status(404).send('Not Found');
-      }
-      
-      const id = req.params.id;
-      const model = await getLinkRowById(id);
-      if (!model) return res.status(404).send("Invalid");
-      
-      return res.render('loading', { id });
-    });
-
-    // ───────────────────────────────────────────────────────────
-    // ELIMINACIÓN DE RASTROS (Rutas /secret ELIMINADAS)
-    // ───────────────────────────────────────────────────────────
-    /* IMPORTANTE: He eliminado las rutas /secret que hacían res.redirect.
-      Ahora el redireccionamiento ocurre SOLO en el cliente (loading.ejs) 
-      usando la API para evitar que TikTok detecte el salto automático.
-    */
-
-    // ───────────────────────────────────────────────────────────
-    // Compat: rutas clásicas por slug
-    // ───────────────────────────────────────────────────────────
-    const RESERVED_PREFIXES = new Set([
-      'clook', 'ping', 'c', 'instructions', 'searchengine', 'loading',
-      'favicon.ico', 'robots.txt', 'healthz', 'admin', 'api', 'challenge'
-    ]);
-
-    app.get('/instructions/:id', async (req, res) => {
-      return res.render('instructions', { id: req.params.id });
-    });
-
-    app.get('/searchEngine/:id', async (req, res) => {
-      const model = await getLinkRowById(req.params.id);
-      if (!model) return res.status(404).send("Invalid link");
-      return res.render('searchEngine', { id: req.params.id, model });
-    });
 
 app.get('/:slug', async (req, res, next) => {
   try {
@@ -724,31 +645,23 @@ app.get('/:slug', async (req, res, next) => {
     const link = await getLinkRowById(slug);
     if (!link) return next();
 
-    // --- MISMA LÓGICA DE SEGURIDAD QUE EN LA RAÍZ ---
     const ua = String(req.headers['user-agent'] || '').toLowerCase();
-    const isMobile = /iphone|ipad|android|blackberry|iemobile/i.test(ua);
-    const isSocialApp = /tiktok|instagram|fb_iab|fban|fbav|threads/.test(ua) || 
-                        req.headers['x-requested-with'] === 'com.zhiliaoapp.musically';
-    const hasEscaped = req.query.e === '1';
+    const isMobile = /iphone|ipad|android|blackberry/i.test(ua);
+    const isSocialApp = /tiktok|instagram|fb_iab|fban|fbav|threads|musically/.test(ua) || 
+                        String(req.headers['x-requested-with']).includes('musically');
 
     // 🛡️ CAPA 1: BOTS Y PC
     if (isBot(req) || !isMobile) {
-        return res.render('searchEngine', { 
-            id: slug, model: link, isBotRequest: true, isSocialApp: false 
-        });
+      return res.render('searchEngine', { id: slug, model: link, isBotRequest: true, isSocialApp: false });
     }
 
-    // 🛡️ CAPA 2: DENTRO DE TIKTOK/IG
-    if (isSocialApp && !hasEscaped) {
-        return res.render('searchEngine', { 
-            id: slug, model: link, isBotRequest: false, isSocialApp: true 
-        });
+    // 🛡️ CAPA 2: DENTRO DE TIKTOK (EL ESCUDO MANDA)
+    if (isSocialApp) {
+      return res.render('searchEngine', { id: slug, model: link, isBotRequest: false, isSocialApp: true });
     }
 
-    // 🛡️ CAPA 3: NAVEGADOR EXTERNO (LIBRE)
-    return res.render('searchEngine', { 
-        id: slug, model: link, isBotRequest: false, isSocialApp: false 
-    });
+    // 🛡️ CAPA 3: NAVEGADOR EXTERNO
+    return res.render('searchEngine', { id: slug, model: link, isBotRequest: false, isSocialApp: false });
 
   } catch (e) {
     console.error("[SLUG ROUTE ERROR]", e);
@@ -756,6 +669,23 @@ app.get('/:slug', async (req, res, next) => {
   }
 });
 
+// ───────────────────────────────────────────────────────────
+// RUTAS DE CARGA (Loading)
+// ───────────────────────────────────────────────────────────
+
+app.get(['/loading', '/loading/'], async (req, res) => {
+  const host = normalizeHost(req.headers.host);
+  const link = await getLinkRowByDomain(host);
+  if (!link) return res.status(404).send('Invalid link');
+  return res.render('loading', { id: link.id });
+});
+
+app.get('/loading/:id', async (req, res) => {
+  if (isBot(req)) return res.status(404).send('Not Found');
+  const model = await getLinkRowById(req.params.id);
+  if (!model) return res.status(404).send("Invalid");
+  return res.render('loading', { id: req.params.id });
+});
     app.get('/ping', (req, res) => res.status(200).send('pong'));
 
 // ───────────────────────────────────────────────────────────

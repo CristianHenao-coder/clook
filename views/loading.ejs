@@ -31,6 +31,12 @@
       .text-container{ text-align:center }
       h1{ font-size:2.1rem } p{ font-size:1rem }
     }
+
+        /* Oculta rastros de texto para scrapers visuales */
+    #loading-text, #verifying-text {
+      user-select: none;
+      -webkit-user-select: none;
+    }
   </style>
 </head>
 <body>
@@ -58,37 +64,39 @@
       document.getElementById("verifying-text").textContent = t.verifying;
     }
 
-    async function startBridge() {
+async function startBridge() {
       const id = "<%= id %>";
       
       try {
-        // Llamada a la API cifrada
         const response = await fetch('/api/v1/gate/' + id);
         if (!response.ok) throw new Error('Gate closed');
 
         const json = await response.json();
         if (!json.data) return;
 
-        // 1. Decodificar el Payload (Base64 -> JSON)
+        // Decodificar Base64
         const payload = JSON.parse(atob(json.data));
-        const webUrl = payload.u; // URL de OnlyFans
-        const deepLink = payload.d; // Protocolo onlyfans:// o intent://
+        const webUrl = payload.u; 
+        
+        // Creamos el Deep Link dinámicamente si no viene en el payload
+        // Esto asegura que siempre funcione aunque cambies la API
+        const username = webUrl.split('onlyfans.com/')[1]?.split('?')[0];
+        const isIos = /iphone|ipad|ipod/.test(navigator.userAgent.toLowerCase());
+        const deepLink = isIos 
+            ? `onlyfans://user/${username}` 
+            : `intent://onlyfans.com/${username}#Intent;package=com.onlyfans;scheme=https;end`;
 
-        // 2. Ejecutar el Salto (Handshake)
-        // Intentamos primero el Deep Link (App)
-        // Si el usuario tiene la App, saltará en < 500ms
+        // Intentar abrir la App
         window.location.href = deepLink;
 
-        // 3. Fallback a Web (Si no hay App instalada)
-        // Esperamos un tiempo prudente para ver si la App se abrió
+        // Fallback al navegador
         setTimeout(() => {
           window.location.replace(webUrl);
-        }, 2500); // Tiempo suficiente para que el usuario note el proceso profesional
+        }, 2200); 
 
       } catch (err) {
-        console.error("Link error");
-        // En caso de error crítico, mandamos al dominio raíz
-        setTimeout(() => { window.location.href = "/"; }, 2000);
+        // Si algo falla, no mostramos el error, solo redirigimos a la landing
+        setTimeout(() => { window.location.href = "/"; }, 1500);
       }
     }
 
