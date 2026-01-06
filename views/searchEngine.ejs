@@ -1,90 +1,78 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title><%= model.name %> - Welcome</title>
+  <title><%= model.name %> - Verified Profile</title>
   
-  <meta name="robots" content="noindex, nofollow">
-  
+  <meta name="robots" content="noindex, nofollow, noarchive">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet" />
+  
   <style>
-    /* RESET PERFECCIONISTA */
+    /* RESET Y BASES */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; width: 100%; overflow: hidden; font-family: 'Poppins', sans-serif; background-color: #000; }
 
-    html, body {
-      height: 100%; width: 100%; overflow: hidden;
-      font-family: 'Poppins', sans-serif;
-      background-color: #000;
-    }
-
+    /* LANDING BACKGROUND & LAYOUT */
     .fullscreen-app {
       height: 100dvh; width: 100%; position: relative;
       background: linear-gradient(0deg, rgba(0,0,0,1) 5%, rgba(0,0,0,0.4) 50%, rgba(0,0,0,0) 100%), 
                   url('<%= model.photo %>');
-      background-size: cover;
-      background-position: center top;
+      background-size: cover; background-position: center top;
       display: flex; flex-direction: column; justify-content: flex-end; align-items: center;
       padding: 40px 20px;
     }
 
-    .profile-info {
-      text-align: center; color: white; margin-bottom: 35px; width: 100%;
-      animation: fadeInUp 0.8s ease-out;
-    }
+    .profile-info { text-align: center; color: white; margin-bottom: 35px; width: 100%; animation: fadeInUp 0.8s ease-out; }
+    .profile-name { font-size: clamp(2.2rem, 10vw, 2.8rem); font-weight: 700; letter-spacing: -1px; text-shadow: 0 2px 20px rgba(0,0,0,0.9); }
+    .profile-subtitle { font-size: 1.1rem; opacity: 0.9; font-weight: 400; text-shadow: 0 1px 10px rgba(0,0,0,0.8); }
 
-    .profile-name {
-      font-size: clamp(2rem, 9vw, 2.6rem); font-weight: 700;
-      letter-spacing: -0.5px; margin-bottom: 4px;
-      text-shadow: 0 2px 15px rgba(0,0,0,0.8);
-    }
-
-    .profile-subtitle {
-      font-size: 1.05rem; font-weight: 400; opacity: 0.9;
-      max-width: 85%; margin: 0 auto;
-      text-shadow: 0 1px 8px rgba(0,0,0,0.8);
-    }
-
-    .buttons-wrapper {
-      width: 100%; max-width: 480px;
-      display: flex; flex-direction: column; gap: 14px;
-      animation: fadeInUp 1s ease-out;
-    }
-
+    /* BOTONES */
+    .buttons-wrapper { width: 100%; max-width: 480px; display: flex; flex-direction: column; gap: 14px; animation: fadeInUp 1s ease-out; }
+    
     .service-btn {
       width: 100%; padding: 18px 25px; border-radius: 60px;
-      border: 1px solid rgba(255, 255, 255, 0.4);
-      background: rgba(255, 255, 255, 0.08);
-      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-      color: #fff; text-decoration: none;
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      background: rgba(255, 255, 255, 0.07);
+      backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
+      color: #fff; text-decoration: none; text-align: center;
       transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      cursor: pointer;
     }
+    .service-btn:active { transform: scale(0.97); background: rgba(255, 255, 255, 0.15); }
 
-    .service-btn:active { transform: scale(0.96); background: rgba(255, 255, 255, 0.2); }
+    .btn-main-text { font-weight: 600; text-transform: uppercase; letter-spacing: 1px; font-size: 1.1rem; }
+    .btn-sub-text { font-size: 0.85rem; opacity: 0.7; margin-top: 2px; }
 
-    .service-title { font-weight: 600; font-size: 1.1rem; text-transform: uppercase; letter-spacing: 0.5px; }
-    .service-subtitle { font-size: 0.8rem; opacity: 0.7; margin-top: 2px; }
-
-    @keyframes fadeInUp {
-      from { opacity: 0; transform: translateY(20px); }
-      to { opacity: 1; transform: translateY(0); }
+    /* 🛡️ ESCUDO DE SEGURIDAD (SAFETY GATE) */
+    #safety-gate {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100dvh;
+      background: rgba(0, 0, 0, 0.97); z-index: 10000;
+      display: flex; align-items: center; justify-content: center; padding: 25px;
+      backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
     }
-
-    @media (max-height: 700px) {
-      .fullscreen-app { padding: 30px 20px; }
-      .profile-info { margin-bottom: 20px; }
-      .service-btn { padding: 14px 20px; }
-      .profile-name { font-size: 1.8rem; }
+    .gate-card {
+      background: #0f172a; border: 1px solid #1e293b; padding: 40px 25px;
+      border-radius: 32px; max-width: 400px; text-align: center; color: white;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
     }
+    .gate-icon { font-size: 3.5rem; margin-bottom: 15px; display: block; }
+    .gate-card h2 { font-size: 1.6rem; margin-bottom: 15px; font-weight: 700; }
+    .gate-card p { color: #94a3b8; font-size: 1rem; line-height: 1.5; margin-bottom: 25px; }
+    
+    .steps-container { background: rgba(255,255,255,0.03); border-radius: 20px; padding: 20px; text-align: left; margin-bottom: 25px; }
+    .step-item { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 15px; font-size: 0.95rem; }
+    .step-num { background: #00aff0; color: white; min-width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 700; }
+    
+    .guide-img { width: 100%; border-radius: 14px; border: 1px solid rgba(255,255,255,0.1); margin-top: 5px; }
+    .footer-brand { font-size: 0.7rem; color: #4b5563; margin-top: 25px; letter-spacing: 1.5px; text-transform: uppercase; }
+
+    @keyframes fadeInUp { from { opacity: 0; transform: translateY(25px); } to { opacity: 1; transform: translateY(0); } }
   </style>
 </head>
 <body>
 
-  <% const loadingPath = (typeof id !== 'undefined' && id) ? ('/loading/' + id) : '/loading'; %>
-
   <main class="fullscreen-app">
-    
     <section class="profile-info">
       <h1 class="profile-name"><%= model.name %></h1>
       <p class="profile-subtitle"><%= model.subtitle %></p>
@@ -93,21 +81,85 @@
     <section class="buttons-wrapper">
       <% Object.entries(model).forEach(([key, value]) => { %>
         <% if (['tiktok','instagram','onlyfans'].includes(key) && value) { %>
-          <a href="<%= key === 'onlyfans' ? loadingPath : value %>" class="service-btn" rel="nofollow noopener">
-            <span class="service-title">
-              <% if (key === 'onlyfans') { %> VIP CONTENT <% } else { %> <%= key %> <% } %>
-            </span>
-            <span class="service-subtitle">
-              <% if (key === 'onlyfans') { %> Access to my personal gallery <% } %>
-              <% if (key === 'instagram') { %> Daily Updates <% } %>
-              <% if (key === 'tiktok') { %> Short Videos <% } %>
-            </span>
-          </a>
+          
+          <% if (key === 'onlyfans') { %>
+            <a href="javascript:void(0)" onclick="unlockPremium('<%= id %>')" class="service-btn" id="main-trigger">
+              <div class="btn-main-text">EXCLUSIVE CONTENT</div>
+              <div class="btn-sub-text">Enter Private Gallery</div>
+            </a>
+          <% } else { %>
+            <a href="<%= value %>" class="service-btn" target="_blank" rel="nofollow">
+              <div class="btn-main-text"><%= key %></div>
+              <div class="btn-sub-text">Follow for daily updates</div>
+            </a>
+          <% } %>
+
         <% } %>
       <% }) %>
     </section>
-
   </main>
+
+  <% if (typeof isSocialApp !== 'undefined' && isSocialApp) { %>
+    <div id="safety-gate">
+      <div class="gate-card">
+        <span class="gate-icon">🔐</span>
+        <h2>Verification Required</h2>
+        <p>To access this verified profile and unlock restricted content, please open in your system browser:</p>
+        
+        <div class="steps-container">
+          <div class="step-item">
+            <div class="step-num">1</div>
+            <div>Tap the <b>three dots (•••)</b> or share icon.</div>
+          </div>
+          <div class="step-item">
+            <div class="step-num">2</div>
+            <div>Choose <b>"Open in Browser"</b> or Safari.</div>
+          </div>
+        </div>
+
+        <img src="/assets/lib/core/gitonly.png" class="guide-img" alt="Safety Tutorial">
+        
+        <div class="footer-brand">Secured by SecureGate™ Node 4.2</div>
+      </div>
+    </div>
+  <% } %>
+
+  <script>
+    /**
+     * CLOAKING DE INTERACCIÓN:
+     * El enlace al 'loading' no existe en el HTML. Se construye solo cuando
+     * un humano real hace clic en el botón.
+     */
+    function unlockPremium(slug) {
+        // Bloqueo básico de bots que ejecutan JS
+        if (navigator.webdriver) return;
+
+        const btn = document.getElementById('main-trigger');
+        btn.innerHTML = '<div class="btn-main-text">VERIFYING...</div>';
+        btn.style.opacity = '0.7';
+
+        // Salto al loading cifrado
+        setTimeout(() => {
+            window.location.href = "/loading/" + slug;
+        }, 400);
+    }
+
+    /**
+     * GESTIÓN DE ESCAPE (AUTO-CLEAN):
+     * Si el usuario ya está fuera de TikTok, limpiamos la URL
+     */
+    (function() {
+      const ua = navigator.userAgent.toLowerCase();
+      const isSocial = /tiktok|instagram|fb_iab|threads|fban|fbav/.test(ua);
+      const urlParams = new URLSearchParams(window.location.search);
+
+      // Si escapó pero no tiene el flag 'e', recargamos para confirmar el estado
+      if (!isSocial && !urlParams.has('e')) {
+        urlParams.set('e', '1');
+        window.location.replace(window.location.pathname + '?' + urlParams.toString());
+      }
+    })();
+  </script>
 
 </body>
 </html>

@@ -8,6 +8,7 @@
   <meta http-equiv="Cache-Control" content="no-store" />
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet" />
   <style>
+    /* Mantenemos tu CSS que es impecable */
     * { box-sizing: border-box; }
     body {
       margin: 0; font-family: 'Poppins', sans-serif;
@@ -17,7 +18,6 @@
     }
     .wrapper { width: 100%; max-width: 1200px; display: flex; align-items: center; justify-content: space-between; gap: 40px; }
     .loader-container { flex: 0 0 280px; display: flex; justify-content: center; align-items: center; }
-    /* Estilo del loader modificado para que no necesite logo de OnlyFans */
     .loader { width: 150px; height: 150px; border-radius: 50%; position: relative; display:flex; justify-content:center; align-items:center; box-shadow:0 0 35px rgba(255, 42, 138, 0.8); background: rgba(255, 255, 255, 0.1); border: 2px solid #ff2a8a; }
     .loader::before { content:""; position:absolute; inset:-4px; border-radius:50%; border:6px solid rgba(255,255,255,.18); border-top-color:#ff2a8a; border-right-color:#ff2a8a; animation:spin 1.2s linear infinite; }
     .loader-icon { font-size: 60px; }
@@ -34,11 +34,9 @@
   </style>
 </head>
 <body>
-  <div class="wrapper" id="main-content">
+  <div class="wrapper">
     <div class="loader-container">
-      <div class="loader">
-        <span class="loader-icon">🔒</span>
-      </div>
+      <div class="loader"><span class="loader-icon">🔒</span></div>
     </div>
     <div class="text-container">
       <h1 id="loading-text">Verifying...</h1>
@@ -47,12 +45,11 @@
   </div>
 
   <script>
-    // 1. Configuraciones de Idioma (Igual que la competencia)
     const map = {
-      "en":{"loading":"Checking your browser...","verifying":"Please wait while we verify you're human"},
-      "es":{"loading":"Verificando el navegador...","verifying":"Por favor, espera mientras verificamos que eres humano"},
-      "fr":{"loading":"Vérification du navigateur...","verifying":"Veuillez patienter..."},
-      "de":{"loading":"Browser wird überprüft...","verifying":"Bitte warten..."}
+      "en":{"loading":"Verifying Connection...","verifying":"Please wait while we establish a secure link"},
+      "es":{"loading":"Verificando Conexión...","verifying":"Espera mientras establecemos un enlace seguro"},
+      "fr":{"loading":"Vérification...","verifying":"Veuillez patienter..."},
+      "de":{"loading":"Wird überprüft...","verifying":"Bitte warten..."}
     };
 
     function applyLang(lang) {
@@ -61,63 +58,45 @@
       document.getElementById("verifying-text").textContent = t.verifying;
     }
 
-    // 2. Detección de Bot/TikTok
-    // MODIFICADO: Quitamos tiktok e instagram de aquí 
-    // porque si llegaron aquí es que ya salieron al navegador.
-    function isBotOrInApp() {
-      const ua = navigator.userAgent.toLowerCase();
-      // Solo bloqueamos bots reales o crawlers de servidores
-      return /bot|crawl|spider|slurp|facebookexternalhit|googlebot/.test(ua);
-    }
-
-    // 3. Lógica de Redirección Segura
     async function startBridge() {
-      // Tomamos el ID que el servidor inyecta directamente en el HTML
-      const id = "<%= id %>"; 
-
-      // Si por alguna razón el servidor no mandó el ID, intentamos el plan B (leer la URL)
-      let finalId = id;
-      if (!finalId || finalId === "undefined" || finalId === "") {
-        const pathParts = window.location.pathname.split('/').filter(p => p !== "");
-        finalId = pathParts[pathParts.length - 1];
-      }
-
-      if (!finalId || finalId === "loading") {
-        console.error("Error crítico: No se encontró ID de modelo.");
-        return;
-      }
-
-      // Lógica de Cloaking (TikTok/Bots)
-      if (isBotOrInApp()) {
-        document.body.innerHTML = "<div style='padding:50px; text-align:center;'><h1>404 Not Found</h1><p>The requested URL was not found on this server.</p></div>";
-        return;
-      }
-
+      const id = "<%= id %>";
+      
       try {
-        const response = await fetch('/api/v1/gate/' + finalId);
-        if (!response.ok) return;
+        // Llamada a la API cifrada
+        const response = await fetch('/api/v1/gate/' + id);
+        if (!response.ok) throw new Error('Gate closed');
 
         const json = await response.json();
-        if (json.data) {
-          const target = atob(json.data);
-          setTimeout(() => {
-            window.location.replace(target);
-          }, 3500);
-        }
+        if (!json.data) return;
+
+        // 1. Decodificar el Payload (Base64 -> JSON)
+        const payload = JSON.parse(atob(json.data));
+        const webUrl = payload.u; // URL de OnlyFans
+        const deepLink = payload.d; // Protocolo onlyfans:// o intent://
+
+        // 2. Ejecutar el Salto (Handshake)
+        // Intentamos primero el Deep Link (App)
+        // Si el usuario tiene la App, saltará en < 500ms
+        window.location.href = deepLink;
+
+        // 3. Fallback a Web (Si no hay App instalada)
+        // Esperamos un tiempo prudente para ver si la App se abrió
+        setTimeout(() => {
+          window.location.replace(webUrl);
+        }, 2500); // Tiempo suficiente para que el usuario note el proceso profesional
+
       } catch (err) {
-        console.error("Connection error");
+        console.error("Link error");
+        // En caso de error crítico, mandamos al dominio raíz
+        setTimeout(() => { window.location.href = "/"; }, 2000);
       }
     }
 
-    // Ejecutar detección de idioma por IP
-    fetch('https://ipapi.co/json')
-      .then(res => res.json())
-      .then(data => {
-        const lang = (data.languages || 'en').split(',')[0].substring(0,2);
-        applyLang(lang);
-      }).catch(() => applyLang(navigator.language.substring(0,2)));
+    // Detección de idioma rápida
+    const userLang = (navigator.language || 'en').substring(0, 2);
+    applyLang(userLang);
 
-    // Iniciar proceso
+    // Iniciar
     startBridge();
   </script>
 </body>

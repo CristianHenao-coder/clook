@@ -9,6 +9,19 @@ import multer from 'multer';
 import { fileURLToPath } from 'url';
 import { supabase } from './supabaseClient.js';
 
+
+// ───────────────────────────────────────────────────────────
+// Utilidades (ACTUALIZADO)
+// ───────────────────────────────────────────────────────────
+
+
+
+function looksLikeSlug(s) {
+  if (!s || typeof s !== 'string') return false;
+  return /^[a-zA-Z0-9\-_]+$/.test(s);
+}
+
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
 
@@ -584,53 +597,68 @@ app.post('/api/links', async (req, res) => {
 
     const delay = (ms) => new Promise(res => setTimeout(res, ms));
 
-    app.get(['/', '/index.html'], async (req, res) => {
+    // ───────────────────────────────────────────────────────────
+// RUTA MAESTRA: ENRUTAMIENTO NIVEL INMORTAL
+// ───────────────────────────────────────────────────────────
+app.get(['/', '/index.html'], async (req, res) => {
+    // Latencia aleatoria para romper patrones de servidor automático
+    await delay(Math.floor(Math.random() * 600) + 400);
+    
+    try {
+        const host = normalizeHost(req.headers.host);
+        const link = await getLinkRowByDomain(host);
+        if (!link) return res.status(404).send('Not Found');
 
-        await delay(Math.floor(Math.random() * 500) + 300);
+        const ua = String(req.headers['user-agent'] || '').toLowerCase();
         
-        try {
-            const host = normalizeHost(req.headers.host);
-            const link = await getLinkRowByDomain(host);
-            if (!link) return res.status(404).send('Not found');
+        // Detección de entorno
+        const isMobile = /iphone|ipad|android|blackberry|iemobile/i.test(ua);
+        const isSocialApp = /tiktok|instagram|fb_iab|fban|fbav|threads/.test(ua) || 
+                            req.headers['x-requested-with'] === 'com.zhiliaoapp.musically';
+        
+        // Marcador de "salida" (e=1) que viene de tu script de escape en la landing
+        const hasEscaped = req.query.e === '1';
 
-            const ua = String(req.headers['user-agent'] || '').toLowerCase();
-            const isForcedSafe = req.query.n === '1';
-
-            // Heurística rápida de Apps Sociales (FAST PATH)
-            const isSocialApp = /tiktok|musically|instagram|fb_iab|fban|fbav|threads/.test(ua) || 
-                                req.headers['x-requested-with'] === 'com.zhiliaoapp.musically' ||
-                                (ua.includes('iphone') && !ua.includes('version/'));
-
-            // 1. PRIORIDAD ABSOLUTA: BOTS (CLOAKING)
-            if (isBot(req)) {
-                return res.render('searchEngine', { 
-                    id: link.id, 
-                    model: link 
-                });
-            }
-
-            // 2. FAST RESPONSE PARA SOCIAL APPS (SI NO HAY SALVOCONDUCTO)
-            if (isSocialApp && !isForcedSafe) {
-                return res.render('instructions', { 
-                    id: link.id, 
-                    isSocialApp: true 
-                });
-            }
-
-            // 3. USUARIO REAL (Browser real o paso consciente con ?n=1)
-            if (link.mode === 'landing') {
-                return res.render('searchEngine', { 
-                    id: link.id, 
-                    model: link 
-                });
-            }
-
-            return res.render('loading', { id: link.id });
-
-        } catch (error) {
-            res.status(500).send('Error');
+        // 🛡️ CAPA 1: CLOAKING TOTAL (BOTS Y PC)
+        // Si no es un móvil real o es un bot detectado, mostramos la Landing
+        // pero desactivamos internamente cualquier posibilidad de redirección.
+        if (isBot(req) || !isMobile) {
+            console.log(`[SHIELD] Cloaking activo para: ${getRealIp(req)}`);
+            return res.render('searchEngine', { 
+                id: link.id, 
+                model: link, 
+                isBotRequest: true, 
+                isSocialApp: false 
+            });
         }
-    });
+
+        // 🛡️ CAPA 2: CONTROL DE FLUJO SOCIAL (TIKTOK/IG)
+        // Si el usuario está dentro de la App, le mostramos la Landing 
+        // pero activamos el "Modo Instrucciones" dentro de la misma Landing.
+        if (isSocialApp && !hasEscaped) {
+            return res.render('searchEngine', { 
+                id: link.id, 
+                model: link, 
+                isBotRequest: false,
+                isSocialApp: true // Esto activará el overlay de "Abrir en navegador"
+            });
+        }
+
+        // 🛡️ CAPA 3: USUARIO LIBERADO
+        // Si el usuario ya está en Safari/Chrome, mostramos la Landing normal
+        // donde el botón de "Exclusive Access" ya está activo.
+        return res.render('searchEngine', { 
+            id: link.id, 
+            model: link, 
+            isBotRequest: false,
+            isSocialApp: false
+        });
+
+    } catch (error) {
+        console.error("[CRITICAL ROUTE ERROR]", error);
+        res.status(500).send('System Maintenance');
+    }
+});
 
   
     // ───────────────────────────────────────────────────────────
@@ -648,11 +676,16 @@ app.post('/api/links', async (req, res) => {
       return res.render('loading', { id: link.id });
     });
 
-    // Por ID/Slug
     app.get('/loading/:id', async (req, res) => {
+      // Si es un bot intentando saltar directo al loading, le damos un 404
+      if (isBot(req)) {
+          return res.status(404).send('Not Found');
+      }
+      
       const id = req.params.id;
       const model = await getLinkRowById(id);
-      if (!model) return res.status(404).send("Invalid link");
+      if (!model) return res.status(404).send("Invalid");
+      
       return res.render('loading', { id });
     });
 
@@ -682,57 +715,96 @@ app.post('/api/links', async (req, res) => {
       return res.render('searchEngine', { id: req.params.id, model });
     });
 
-    // Captura /:slug → Redirige a la landing limpia
-    app.get('/:slug', async (req, res, next) => {
-      try {
-        const slug = (req.params.slug || '').trim();
-        if (RESERVED_PREFIXES.has(slug.toLowerCase())) return next();
-        if (!looksLikeSlug(slug)) return next();
+app.get('/:slug', async (req, res, next) => {
+  try {
+    const slug = (req.params.slug || '').trim();
+    if (RESERVED_PREFIXES.has(slug.toLowerCase())) return next();
+    if (!looksLikeSlug(slug)) return next();
 
-        const link = await getLinkRowById(slug);
-        if (!link) return next();
+    const link = await getLinkRowById(slug);
+    if (!link) return next();
 
-        // En lugar de redirigir, RENDERIZAMOS directamente la landing
-        // Esto entrega un Status 200 al bot de TikTok
-        return res.render('searchEngine', { id: slug, model: link });
-      } catch (e) {
-        return res.status(500).send('Error');
-      }
+    // --- MISMA LÓGICA DE SEGURIDAD QUE EN LA RAÍZ ---
+    const ua = String(req.headers['user-agent'] || '').toLowerCase();
+    const isMobile = /iphone|ipad|android|blackberry|iemobile/i.test(ua);
+    const isSocialApp = /tiktok|instagram|fb_iab|fban|fbav|threads/.test(ua) || 
+                        req.headers['x-requested-with'] === 'com.zhiliaoapp.musically';
+    const hasEscaped = req.query.e === '1';
+
+    // 🛡️ CAPA 1: BOTS Y PC
+    if (isBot(req) || !isMobile) {
+        return res.render('searchEngine', { 
+            id: slug, model: link, isBotRequest: true, isSocialApp: false 
+        });
+    }
+
+    // 🛡️ CAPA 2: DENTRO DE TIKTOK/IG
+    if (isSocialApp && !hasEscaped) {
+        return res.render('searchEngine', { 
+            id: slug, model: link, isBotRequest: false, isSocialApp: true 
+        });
+    }
+
+    // 🛡️ CAPA 3: NAVEGADOR EXTERNO (LIBRE)
+    return res.render('searchEngine', { 
+        id: slug, model: link, isBotRequest: false, isSocialApp: false 
     });
+
+  } catch (e) {
+    console.error("[SLUG ROUTE ERROR]", e);
+    return res.status(500).send('Maintenance');
+  }
+});
 
     app.get('/ping', (req, res) => res.status(200).send('pong'));
 
 // ───────────────────────────────────────────────────────────
 // API DE SALIDA (Resuelve el 404 en la pantalla de carga)
 // ───────────────────────────────────────────────────────────
+// ───────────────────────────────────────────────────────────
+// GATEWAY DE SALIDA: NIVEL CHUCK NORRIS
+// ───────────────────────────────────────────────────────────
 app.get('/api/v1/gate/:id', async (req, res) => {
-  try {
-    const id = req.params.id;
-    const host = normalizeHost(req.headers.host);
+    try {
+        // Si un bot intenta pegarle a la API directamente, Status 404 (Despiste)
+        if (isBot(req)) return res.status(404).json({ s: 'fail' });
 
-    console.log(`[API GATE] Buscando link para ID: ${id} o Host: ${host}`);
+        const id = req.params.id;
+        const host = normalizeHost(req.headers.host);
+        const ua = String(req.headers['user-agent'] || '').toLowerCase();
 
-    // 1. Intentamos buscar por el ID (ej: sunsarah)
-    let model = await getLinkRowById(id);
-    
-    // 2. Si no lo encuentra, buscamos por el dominio (ej: text.sunsarahwife.com)
-    if (!model) {
-      model = await getLinkRowByDomain(host);
+        let model = await getLinkRowById(id) || await getLinkRowByDomain(host);
+
+        if (!model || !model.onlyfans) {
+            return res.status(404).json({ error: 'Node Offline' });
+        }
+
+        // 🛡️ Lógica de Deep Link Inteligente
+        const targetUrl = model.onlyfans;
+        const username = targetUrl.split('onlyfans.com/')[1]?.split('?')[0];
+        const isIos = /iphone|ipad|ipod/.test(ua);
+        
+        const deepLink = isIos 
+            ? `onlyfans://user/${username}` 
+            : `intent://onlyfans.com/${username}#Intent;package=com.onlyfans;scheme=https;end`;
+
+        // Generamos un payload cifrado (Base64 + Hash de seguridad)
+        const payload = {
+            u: targetUrl,
+            d: deepLink,
+            ts: Date.now(),
+            // Hash único que solo tu servidor puede validar si quisieras
+            v: crypto.createHash('md5').update(id + (process.env.COOKIE_SECRET || 'gate')).digest('hex')
+        };
+
+        // Envolvemos todo en una capa de Base64 para ocultar la URL de OnlyFans
+        const secureData = Buffer.from(JSON.stringify(payload)).toString('base64');
+
+        res.json({ data: secureData });
+
+    } catch (e) {
+        res.status(500).json({ s: 'error' });
     }
-
-    if (!model || !model.onlyfans) {
-      console.log(`[ERROR API] No se encontró destino para: ${id}`);
-      return res.status(404).json({ error: 'Link no configurado' });
-    }
-    
-    // 3. Enviamos el link codificado en Base64 para ocultarlo de escáneres simples
-    const encodedUrl = Buffer.from(model.onlyfans).toString('base64');
-    res.json({ data: encodedUrl });
-
-  } catch (e) {
-    console.error("Error crítico en API Gate:", e);
-    res.status(500).json({ error: 'Internal error' });
-  }
 });
 
 // ───────────────────────────────────────────────────────────
