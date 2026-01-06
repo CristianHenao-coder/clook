@@ -623,8 +623,11 @@ app.get(['/', '/index.html'], async (req, res) => {
     const isIOS = /iphone|ipad|ipod/.test(ua);
     const isCleanSafari = /version\/.*safari/.test(ua);
     
-    // Si es iPhone pero NO es Safari limpio, es una App Social (TikTok/IG)
-    const isIOSInApp = isIOS && !isCleanSafari;
+    // Detectamos si es un navegador externo conocido aunque no sea Safari puro
+    const isExternalBrowser = /brave|chrome|crios|fxios|edgios/.test(ua);
+
+    // Si es iPhone pero NO es Safari limpio Y NO es un navegador externo, es In-App
+    const isIOSInApp = isIOS && !isCleanSafari && !isExternalBrowser;
     
     const isSocialApp = /tiktok|instagram|fb_iab|fban|fbav|threads|musically/.test(ua) || 
                         String(req.headers['x-requested-with'] || '').includes('musically') ||
@@ -667,7 +670,10 @@ app.get('/:slug', async (req, res, next) => {
     const isIOS = /iphone|ipad|ipod/.test(ua);
     const isCleanSafari = /version\/.*safari/.test(ua);
     
-    const isIOSInApp = isIOS && !isCleanSafari;
+    // Detectamos si es un navegador externo conocido
+    const isExternalBrowser = /brave|chrome|crios|fxios|edgios/.test(ua);
+
+    const isIOSInApp = isIOS && !isCleanSafari && !isExternalBrowser;
     
     const isSocialApp = /tiktok|instagram|fb_iab|fban|fbav|threads|musically/.test(ua) || 
                         String(req.headers['x-requested-with'] || '').includes('musically') ||
