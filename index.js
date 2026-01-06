@@ -28,6 +28,11 @@ const __dirname  = path.dirname(__filename);
 const app  = express();
 const port = process.env.PORT || 3000;
 
+const RESERVED_PREFIXES = new Set([
+  'clook', 'ping', 'c', 'instructions', 'searchengine', 'loading',
+  'favicon.ico', 'robots.txt', 'healthz', 'admin', 'api', 'challenge', 'assets'
+]);
+
 // ───────────────────────────────────────────────────────────
 // Views y estáticos
 // ───────────────────────────────────────────────────────────
@@ -639,6 +644,8 @@ app.get(['/', '/index.html'], async (req, res) => {
 app.get('/:slug', async (req, res, next) => {
   try {
     const slug = (req.params.slug || '').trim();
+    
+    // Ahora esto ya no fallará porque RESERVED_PREFIXES existe globalmente
     if (RESERVED_PREFIXES.has(slug.toLowerCase())) return next();
     if (!looksLikeSlug(slug)) return next();
 
@@ -647,20 +654,22 @@ app.get('/:slug', async (req, res, next) => {
 
     const ua = String(req.headers['user-agent'] || '').toLowerCase();
     const isMobile = /iphone|ipad|android|blackberry/i.test(ua);
+    
+    // Detección de TikTok ultra-sensible
     const isSocialApp = /tiktok|instagram|fb_iab|fban|fbav|threads|musically/.test(ua) || 
-                        String(req.headers['x-requested-with']).includes('musically');
+                        String(req.headers['x-requested-with'] || '').includes('musically');
 
     // 🛡️ CAPA 1: BOTS Y PC
     if (isBot(req) || !isMobile) {
       return res.render('searchEngine', { id: slug, model: link, isBotRequest: true, isSocialApp: false });
     }
 
-    // 🛡️ CAPA 2: DENTRO DE TIKTOK (EL ESCUDO MANDA)
+    // 🛡️ CAPA 2: DENTRO DE TIKTOK (Escudo persistente)
     if (isSocialApp) {
       return res.render('searchEngine', { id: slug, model: link, isBotRequest: false, isSocialApp: true });
     }
 
-    // 🛡️ CAPA 3: NAVEGADOR EXTERNO
+    // 🛡️ CAPA 3: NAVEGADOR EXTERNO (Chrome/Safari)
     return res.render('searchEngine', { id: slug, model: link, isBotRequest: false, isSocialApp: false });
 
   } catch (e) {

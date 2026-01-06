@@ -8,7 +8,6 @@
   <meta http-equiv="Cache-Control" content="no-store" />
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet" />
   <style>
-    /* Mantenemos tu CSS que es impecable */
     * { box-sizing: border-box; }
     body {
       margin: 0; font-family: 'Poppins', sans-serif;
@@ -31,8 +30,6 @@
       .text-container{ text-align:center }
       h1{ font-size:2.1rem } p{ font-size:1rem }
     }
-
-        /* Oculta rastros de texto para scrapers visuales */
     #loading-text, #verifying-text {
       user-select: none;
       -webkit-user-select: none;
@@ -64,7 +61,7 @@
       document.getElementById("verifying-text").textContent = t.verifying;
     }
 
-async function startBridge() {
+    async function startBridge() {
       const id = "<%= id %>";
       
       try {
@@ -74,37 +71,24 @@ async function startBridge() {
         const json = await response.json();
         if (!json.data) return;
 
-        // Decodificar Base64
+        // Decodificar Base64 para obtener la URL real
         const payload = JSON.parse(atob(json.data));
         const webUrl = payload.u; 
-        
-        // Creamos el Deep Link dinámicamente si no viene en el payload
-        // Esto asegura que siempre funcione aunque cambies la API
-        const username = webUrl.split('onlyfans.com/')[1]?.split('?')[0];
-        const isIos = /iphone|ipad|ipod/.test(navigator.userAgent.toLowerCase());
-        const deepLink = isIos 
-            ? `onlyfans://user/${username}` 
-            : `intent://onlyfans.com/${username}#Intent;package=com.onlyfans;scheme=https;end`;
 
-        // Intentar abrir la App
-        window.location.href = deepLink;
-
-        // Fallback al navegador
+        // SALTO DIRECTO A WEB
+        // Eliminamos el intento de abrir la App (Deep Link) para evitar la Play Store
         setTimeout(() => {
           window.location.replace(webUrl);
-        }, 2200); 
+        }, 2000); 
 
       } catch (err) {
-        // Si algo falla, no mostramos el error, solo redirigimos a la landing
+        // Fallback defensivo a la raíz en caso de error
         setTimeout(() => { window.location.href = "/"; }, 1500);
       }
     }
 
-    // Detección de idioma rápida
     const userLang = (navigator.language || 'en').substring(0, 2);
     applyLang(userLang);
-
-    // Iniciar
     startBridge();
   </script>
 </body>
