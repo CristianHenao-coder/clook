@@ -39,6 +39,61 @@
       cursor: pointer;
     }
 
+    .service-btn {
+      width: 100%; padding: 18px 25px; border-radius: 60px;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      background: rgba(255, 255, 255, 0.07);
+      backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
+      color: #fff; text-decoration: none; text-align: center;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      cursor: pointer;
+      position: relative; /* Necesario para el brillo */
+      overflow: hidden;    /* Corta el brillo para que no se salga del botón */
+    }
+
+    /* Efecto de Brillo Exterior (Glow) */
+    #main-trigger {
+      border: 1px solid rgba(0, 175, 240, 0.6);
+      box-shadow: 0 0 20px rgba(0, 175, 240, 0.2);
+      animation: buttonGlow 3s infinite ease-in-out;
+    }
+
+    /* Rayo de luz que recorre el botón (Shine) */
+    .service-btn::after {
+      content: "";
+      position: absolute;
+      top: -50%;
+      left: -100%;
+      width: 50%;
+      height: 200%;
+      background: linear-gradient(
+        to right,
+        rgba(255, 255, 255, 0) 0%,
+        rgba(255, 255, 255, 0.2) 50%,
+        rgba(255, 255, 255, 0) 100%
+      );
+      transform: rotate(25deg);
+      animation: buttonShine 4s infinite;
+    }
+
+    /* Animaciones */
+    @keyframes buttonGlow {
+      0%, 100% { box-shadow: 0 0 15px rgba(0, 175, 240, 0.2); border-color: rgba(0, 175, 240, 0.4); }
+      50% { box-shadow: 0 0 30px rgba(0, 175, 240, 0.6); border-color: rgba(0, 175, 240, 0.8); }
+    }
+
+    @keyframes buttonShine {
+      0% { left: -100%; }
+      20% { left: 150%; } /* El rayo pasa rápido al inicio */
+      100% { left: 150%; } /* Pausa larga antes de volver a pasar */
+    }
+
+    /* Efecto al presionar */
+    .service-btn:active {
+      transform: scale(0.96);
+      background: rgba(255, 255, 255, 0.15);
+    }
+
     .btn-main-text { font-weight: 600; text-transform: uppercase; letter-spacing: 1px; font-size: 1.1rem; }
     .btn-sub-text { font-size: 0.85rem; opacity: 0.7; margin-top: 2px; }
 
@@ -133,21 +188,21 @@
      * Función para el botón de acceso
      */
     function unlockPremium(slug) {
-        // Bloqueo básico de bots en el cliente
         if (navigator.webdriver) return;
 
         const btn = document.getElementById('main-trigger');
         if (btn) {
-            btn.innerHTML = '<div class="btn-main-text">VERIFYING...</div>';
-            btn.style.opacity = "0.7";
+            // Cambiamos el texto y el estilo
+            btn.innerHTML = '<div class="btn-main-text">VERIFYING...</div><div class="btn-sub-text">Please wait</div>';
+            btn.style.animation = "none"; // Detenemos el glow azul
+            btn.style.background = "rgba(0, 175, 240, 0.3)";
             btn.style.pointerEvents = "none";
         }
         
-        // Pequeño delay para sensación de seguridad y redirigir
         setTimeout(() => { 
             window.location.href = "/loading/" + slug; 
-        }, 600);
-    }
+        }, 800);
+      }
 
     /**
      * Lógica de Limpieza Silenciosa
