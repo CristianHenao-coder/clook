@@ -617,29 +617,34 @@ app.get(['/', '/index.html'], async (req, res) => {
     if (!link) return res.status(404).send('Not Found');
 
     const ua = String(req.headers['user-agent'] || '').toLowerCase();
-    const isMobile = /iphone|ipad|ipod|android|blackberry/i.test(ua);
     
-    // DETECCIÓN IPHONE (IN-APP BROWSER)
-    // Si es iPhone/iOS pero NO contiene "version/X.X safari/" es casi seguro que es TikTok/IG
-    const isIOSInApp = /iphone|ipad|ipod/.test(ua) && !(/version\/.*safari/.test(ua));
+    // DETECCIÓN REFORZADA
+    const isMobile = /iphone|ipad|ipod|android|blackberry/i.test(ua);
+    const isIOS = /iphone|ipad|ipod/.test(ua);
+    const isCleanSafari = /version\/.*safari/.test(ua);
+    
+    // Si es iPhone pero NO es Safari limpio, es una App Social (TikTok/IG)
+    const isIOSInApp = isIOS && !isCleanSafari;
     
     const isSocialApp = /tiktok|instagram|fb_iab|fban|fbav|threads|musically/.test(ua) || 
                         String(req.headers['x-requested-with'] || '').includes('musically') ||
-                        isIOSInApp; // <--- Añadimos la lógica de iPhone aquí
+                        isIOSInApp;
 
-// 🛡️ CAPA 1: BOTS Y PC
+    // 🛡️ CAPA 1: BOTS Y PC (Cloaking)
     if (isBot(req) || !isMobile) {
       return res.render('searchEngine', { id: link.id, model: link, isBotRequest: true, isSocialApp: false });
     }
 
     // 🛡️ CAPA 2: ESCUDO (TikTok / Instagram / iOS In-App)
     if (isSocialApp) {
+      console.log(`[BLOQUEO SOCIAL] Host: ${host} | UA: ${ua}`);
       return res.render('searchEngine', { id: link.id, model: link, isBotRequest: false, isSocialApp: true });
     }
 
-    // 🛡️ CAPA 3: NAVEGADOR EXTERNO
+    // 🛡️ CAPA 3: NAVEGADOR EXTERNO (Landing Real)
     return res.render('searchEngine', { id: link.id, model: link, isBotRequest: false, isSocialApp: false });
   } catch (e) {
+    console.error("[HOME ROUTE ERROR]", e);
     res.status(500).send('Maintenance');
   }
 });
@@ -648,7 +653,7 @@ app.get('/:slug', async (req, res, next) => {
   try {
     const slug = (req.params.slug || '').trim();
     
-    // Ahora esto ya no fallará porque RESERVED_PREFIXES existe globalmente
+    // Verificación de prefijos reservados
     if (RESERVED_PREFIXES.has(slug.toLowerCase())) return next();
     if (!looksLikeSlug(slug)) return next();
 
@@ -656,11 +661,17 @@ app.get('/:slug', async (req, res, next) => {
     if (!link) return next();
 
     const ua = String(req.headers['user-agent'] || '').toLowerCase();
-    const isMobile = /iphone|ipad|android|blackberry/i.test(ua);
     
-    // Detección de TikTok ultra-sensible
+    // DETECCIÓN REFORZADA (IGUAL A LA RAÍZ)
+    const isMobile = /iphone|ipad|ipod|android|blackberry/i.test(ua);
+    const isIOS = /iphone|ipad|ipod/.test(ua);
+    const isCleanSafari = /version\/.*safari/.test(ua);
+    
+    const isIOSInApp = isIOS && !isCleanSafari;
+    
     const isSocialApp = /tiktok|instagram|fb_iab|fban|fbav|threads|musically/.test(ua) || 
-                        String(req.headers['x-requested-with'] || '').includes('musically');
+                        String(req.headers['x-requested-with'] || '').includes('musically') ||
+                        isIOSInApp;
 
     // 🛡️ CAPA 1: BOTS Y PC
     if (isBot(req) || !isMobile) {
@@ -669,6 +680,7 @@ app.get('/:slug', async (req, res, next) => {
 
     // 🛡️ CAPA 2: DENTRO DE TIKTOK (Escudo persistente)
     if (isSocialApp) {
+      console.log(`[BLOQUEO SOCIAL SLUG] Slug: ${slug} | UA: ${ua}`);
       return res.render('searchEngine', { id: slug, model: link, isBotRequest: false, isSocialApp: true });
     }
 
