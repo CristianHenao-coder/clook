@@ -617,19 +617,22 @@ app.get(['/', '/index.html'], async (req, res) => {
     if (!link) return res.status(404).send('Not Found');
 
     const ua = String(req.headers['user-agent'] || '').toLowerCase();
-    const isMobile = /iphone|ipad|android|blackberry/i.test(ua);
+    const isMobile = /iphone|ipad|ipod|android|blackberry/i.test(ua);
     
-    // DETECCIÓN REFORZADA: Si el User-Agent dice TikTok, ES TikTok.
+    // DETECCIÓN IPHONE (IN-APP BROWSER)
+    // Si es iPhone/iOS pero NO contiene "version/X.X safari/" es casi seguro que es TikTok/IG
+    const isIOSInApp = /iphone|ipad|ipod/.test(ua) && !(/version\/.*safari/.test(ua));
+    
     const isSocialApp = /tiktok|instagram|fb_iab|fban|fbav|threads|musically/.test(ua) || 
-                        String(req.headers['x-requested-with']).includes('musically');
+                        String(req.headers['x-requested-with'] || '').includes('musically') ||
+                        isIOSInApp; // <--- Añadimos la lógica de iPhone aquí
 
-    // 🛡️ CAPA 1: BOTS Y PC
+// 🛡️ CAPA 1: BOTS Y PC
     if (isBot(req) || !isMobile) {
       return res.render('searchEngine', { id: link.id, model: link, isBotRequest: true, isSocialApp: false });
     }
 
-    // 🛡️ CAPA 2: DENTRO DE TIKTOK (EL ESCUDO MANDA)
-    // Eliminamos el chequeo de "hasEscaped" aquí para que el escudo sea persistente en la App.
+    // 🛡️ CAPA 2: ESCUDO (TikTok / Instagram / iOS In-App)
     if (isSocialApp) {
       return res.render('searchEngine', { id: link.id, model: link, isBotRequest: false, isSocialApp: true });
     }

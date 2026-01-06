@@ -63,27 +63,26 @@
 
     async function startBridge() {
       const id = "<%= id %>";
-      
       try {
         const response = await fetch('/api/v1/gate/' + id);
-        if (!response.ok) throw new Error('Gate closed');
-
         const json = await response.json();
-        if (!json.data) return;
-
-        // Decodificar Base64 para obtener la URL real
         const payload = JSON.parse(atob(json.data));
         const webUrl = payload.u; 
 
-        // SALTO DIRECTO A WEB
-        // Eliminamos el intento de abrir la App (Deep Link) para evitar la Play Store
+        // En iPhone, Safari es muy sensible al tiempo de espera.
+        // Reducimos a 1.5 segundos para que no parezca un popup bloqueado.
         setTimeout(() => {
-          window.location.replace(webUrl);
-        }, 2000); 
+          // Intentamos asignación directa primero
+          window.location.href = webUrl;
+          
+          // Fallback de emergencia por si .href falla en iOS
+          setTimeout(() => {
+             window.location = webUrl;
+          }, 400);
+        }, 1500); 
 
       } catch (err) {
-        // Fallback defensivo a la raíz en caso de error
-        setTimeout(() => { window.location.href = "/"; }, 1500);
+        window.location.href = "/";
       }
     }
 
