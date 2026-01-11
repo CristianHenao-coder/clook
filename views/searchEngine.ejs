@@ -327,7 +327,7 @@
 
 <body>
 
-  <main class="fullscreen-app">
+<main class="fullscreen-app">
     <div class="bg-media"></div>
 
     <section class="profile-info">
@@ -336,22 +336,12 @@
     </section>
 
     <section class="buttons-wrapper">
-
       <%
         const uiMap = {
-          tiktok: {
-            label: 'Telegram',
-            icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M9.04 15.44 8.9 19.6c.54 0 .77-.23 1.05-.5l2.52-2.4 5.23 3.82c.96.53 1.65.25 1.9-.88l3.44-16.2c.33-1.54-.56-2.14-1.5-1.79L1.12 9.2c-1.48.58-1.46 1.42-.27 1.79l4.9 1.53L18.7 5.4c.61-.4 1.17-.18.71.22Z"/>
-            </svg>`
-          },
-          instagram: {
-            label: 'Instagram',
-            icon: ''
-          }
+          tiktok: { label: 'Telegram', icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9.04 15.44 8.9 19.6c.54 0 .77-.23 1.05-.5l2.52-2.4 5.23 3.82c.96.53 1.65.25 1.9-.88l3.44-16.2c.33-1.54-.56-2.14-1.5-1.79L1.12 9.2c-1.48.58-1.46 1.42-.27 1.79l4.9 1.53L18.7 5.4c.61-.4 1.17-.18.71.22Z"/></svg>` },
+          instagram: { label: 'Instagram', icon: '' }
         };
       %>
-      
 
       <% Object.entries(model).forEach(([key, value]) => { %>
         <% if (['tiktok','instagram','onlyfans'].includes(key) && value) { %>
@@ -376,6 +366,28 @@
     </section>
   </main>
 
+  <% if (typeof isSocialApp !== 'undefined' && isSocialApp) { %>
+      <div id="safety-gate">
+        <div class="gate-card">
+          <span class="gate-icon">🔐</span>
+          <h2>Verification Required</h2>
+          <p>To access this verified profile, please open in your system browser:</p>
+          <div class="steps-container">
+            <div class="step-item">
+              <div class="step-num">1</div>
+              <div>Tap the <b>three dots (•••)</b> or share icon.</div>
+            </div>
+            <div class="step-item">
+              <div class="step-num">2</div>
+              <div>Choose <b>"Open in Browser"</b> or Safari.</div>
+            </div>
+          </div>
+          <img src="/clook/gif/gitonly.png" class="guide-img" alt="Tutorial">
+          <div class="footer-brand">Secured by SecureGate™</div>
+        </div>
+      </div>
+  <% } %>
+
   <script>
     function unlockPremium(slug) {
       if (navigator.webdriver) return;
@@ -392,6 +404,16 @@
         window.location.href = "/loading/" + slug;
       }, 800);
     }
+
+    // Lógica de Limpieza Silenciosa
+    (function() {
+      const ua = navigator.userAgent.toLowerCase();
+      const isSocial = /tiktok|instagram|fb_iab|threads|fban|fbav|musically/.test(ua);
+      if (!isSocial && !window.location.search.includes('e=')) {
+          const newUrl = window.location.pathname + '?e=1' + window.location.hash;
+          window.history.replaceState({path: newUrl}, '', newUrl);
+      }
+    })();
   </script>
 
 </body>
