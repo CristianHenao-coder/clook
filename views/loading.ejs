@@ -35,30 +35,29 @@
       -webkit-user-select: none;
     }
 
-/* AJUSTES PARA TRADUCCIÓN LIMPIA */
-    .goog-te-banner-frame.skiptranslate { display: none !important; }
-    body { top: 0px !important; }
-    
-    #google_translate_element {
-      position: fixed;
-      bottom: 20px;
-      left: 20px;
-      z-index: 1000;
-      opacity: 0.05; /* Casi invisible para no molestar */
-      transition: opacity 0.3s;
+    /* Bloqueo total de la interfaz de Google */
+    .goog-te-banner-frame.skiptranslate,
+    .goog-te-banner-frame,
+    #goog-gt-tt,
+    .goog-te-balloon-frame,
+    .goog-gt-hl-layer {
+        display: none !important;
     }
-    
-    #google_translate_element:hover { opacity: 0.8; } /* Se ve si pasas el mouse */
 
-    .goog-logo-link { display:none !important; } 
-    .goog-te-gadget { color: transparent !important; font-size: 0 !important; }
-    .goog-te-gadget .goog-te-combo { 
-      background: rgba(255,255,255,0.1); 
-      color: white; 
-      border: 1px solid rgba(255,255,255,0.2);
-      border-radius: 5px;
-      padding: 5px;
-      font-family: 'Poppins', sans-serif;
+    body {
+        top: 0px !important;
+        position: static !important;
+    }
+
+    /* Ocultar el widget completamente */
+    #google_translate_element {
+        display: none !important;
+    }
+
+    /* Eliminar el resaltado de texto al pasar el mouse */
+    .goog-text-highlight {
+        background: none !important;
+        box-shadow: none !important;
     }
   </style>
 </head>
@@ -79,28 +78,29 @@
     function googleTranslateElementInit() {
       new google.translate.TranslateElement({
         pageLanguage: 'en',
-        // Lista masiva de idiomas para máximo alcance
-        includedLanguages: 'es,en,pt,fr,it,de,ru,zh-CN,ja,ko,ar,hi,tr,nl,pl,vi,th,id,sv,no,da',
         layout: google.translate.TranslateElement.InlineLayout.SIMPLE,
-        autoDisplay: true
+        autoDisplay: false
       }, 'google_translate_element');
+
+      // Forzar la traducción automática basada en el idioma del navegador
+      setTimeout(function() {
+        var lang = navigator.language || navigator.userLanguage;
+        var shortLang = lang.split('-')[0];
+        
+        // Si el idioma no es inglés, intentamos disparar la traducción
+        if (shortLang !== 'en') {
+          var select = document.querySelector('select.goog-te-combo');
+          if (select) {
+            select.value = shortLang;
+            select.dispatchEvent(new Event('change'));
+          }
+        }
+      }, 1000); // Espera 1 segundo a que cargue Google
     }
   </script>
   <script type="text/javascript" src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
 
   <script>
-    const map = {
-      "en":{"loading":"Verifying Connection...","verifying":"Please wait while we establish a secure link"},
-      "es":{"loading":"Verificando Conexión...","verifying":"Espera mientras establecemos un enlace seguro"},
-      "fr":{"loading":"Vérification...","verifying":"Veuillez patienter..."},
-      "de":{"loading":"Wird überprüft...","verifying":"Bitte warten..."}
-    };
-
-    function applyLang(lang) {
-      const t = map[lang] || map.en;
-      document.getElementById("loading-text").textContent = t.loading;
-      document.getElementById("verifying-text").textContent = t.verifying;
-    }
 
     async function startBridge() {
       const id = "<%= id %>";
